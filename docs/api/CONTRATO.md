@@ -96,7 +96,7 @@ As respostas repetem o corpo, com `id`, `arquivada` (`arquivado` no cartão) e `
 | GET | `/compromissos?natureza=&forma=&pessoaId=&ativos=true` | `200`, paginado |
 | POST | `/compromissos` | `201` |
 | GET | `/compromissos/{id}` | `200`, com as ocorrências calculadas |
-| PUT | `/compromissos/{id}` | `200`. Altera o plano inteiro; ocorrências pagas mantêm o valor real |
+| PUT | `/compromissos/{id}` | `200`. Altera o plano. Com parcela paga, só descrição, certeza, pessoa e categoria podem mudar (`OCORRENCIA_JA_PAGA`) |
 | PATCH | `/compromissos/{id}/ocorrencias/{numero}` | `200`. Edita uma parcela, com escopo (ver abaixo) |
 | POST | `/compromissos/{id}/cancelamento` | `200`. Corpo: `{ "aPartirDe": "2027-06-01" }` |
 | DELETE | `/compromissos/{id}` | `204`. Só sem ocorrências pagas; caso contrário `409` |
@@ -279,7 +279,9 @@ O período tem no máximo 24 meses, e passar disso retorna `PERIODO_INVALIDO`.
 
 - `situacao`: `PREVISTO` ou `REALIZADO`. Com `REALIZADO`, `valorCentavos` é o valor real.
 - `sobraCentavos` = `receitasCentavos` − `compromissosCentavos`. **Pode ser negativa**, e o front mostra isso sem tom de alarme.
-- `vale` nunca entra na sobra.
+- `vale` nunca entra na sobra, e seus itens não aparecem em `itens`.
+- Parcela paga conta no mês do pagamento, com o valor real.
+- Item ignorado aparece em `itens`, mas sai dos totais.
 - Com filtro por pessoa, os totais consideram só os itens dela.
 - Gastos avulsos entram em `itens`, sem `compromissoId`.
 
@@ -323,7 +325,7 @@ Mesma conta da projeção, com uma compra hipotética. **Nada é gravado.**
 
 ### `GET /pendencias?dias=7`
 
-Faturas e parcelas não pagas, vencidas ou que vencem nos próximos `dias` (padrão 7, máximo 31). É calculado, sem tabela própria, e usa as mesmas regras da projeção. Por isso, o número é o mesmo em qualquer tela.
+Saídas não pagas, vencidas ou que vencem nos próximos `dias` (padrão 7, máximo 31). Entradas e vale ficam de fora. É calculado, sem tabela própria, e usa as mesmas regras da projeção. Por isso, o número é o mesmo em qualquer tela.
 
 ```json
 {
