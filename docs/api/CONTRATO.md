@@ -42,26 +42,31 @@ Problem Details (RFC 9457), com `codigo` estável. O front mapeia `codigo` para 
 |---|---|---|
 | 400 | Formato ou validação de campo | Sem código de negócio |
 | 401 | Sem sessão, login ou segundo fator inválidos | `NAO_AUTENTICADO`, `CREDENCIAIS_INVALIDAS` |
+| 403 | Token CSRF ausente ou inválido | `ACESSO_NEGADO` |
 | 404 | Inexistente **ou de outra conta** | `RECURSO_NAO_ENCONTRADO` |
 | 409 | Conflito de estado | `OCORRENCIA_JA_PAGA`, `FATURA_JA_PAGA`, `APELIDO_DUPLICADO`, `CATEGORIA_DUPLICADA` |
 | 422 | Regra violada | Ver abaixo |
 | 429 | Excesso de tentativas | `MUITAS_TENTATIVAS`, com `Retry-After` |
 
-Códigos de 422: `PARCELAS_INVALIDAS`, `CARTAO_LIMITE_PARCELAS`, `BOLETO_LIMITE_PARCELAS`, `VALOR_INVALIDO`, `DIA_INVALIDO`, `ORIGEM_OBRIGATORIA`, `ORIGEM_DUPLA`, `CARTEIRA_INCOMPATIVEL`, `PERIODO_INVALIDO`, `CONFIRMACAO_INVALIDA`.
+Códigos de 422: `PARCELAS_INVALIDAS`, `CARTAO_LIMITE_PARCELAS`, `BOLETO_LIMITE_PARCELAS`, `VALOR_INVALIDO`, `DIA_INVALIDO`, `ORIGEM_OBRIGATORIA`, `ORIGEM_DUPLA`, `CARTEIRA_INCOMPATIVEL`, `PERIODO_INVALIDO`, `CONFIRMACAO_INVALIDA`, `SEGUNDO_FATOR_JA_ATIVO`, `SEGUNDO_FATOR_NAO_INICIADO`, `APELIDO_OBRIGATORIO`, `APELIDO_MUITO_LONGO`.
 
 ## Autenticação
 
 | Método | Rota | Corpo | Resposta |
 |---|---|---|---|
-| POST | `/autenticacao/entrar` | `{ email, senha }` | `200 { segundoFatorObrigatorio: true }` |
+| POST | `/autenticacao/entrar` | `{ email, senha }` | `200 { segundoFatorObrigatorio }`. Com `true`, define o cookie de desafio. Com `false`, o segundo fator ainda não foi ativado e a sessão já abre |
 | POST | `/autenticacao/segundo-fator` | `{ codigo }` | `204`, define os cookies de sessão |
 | POST | `/autenticacao/renovar` | | `204`, rotaciona o refresh token |
 | POST | `/autenticacao/sair` | | `204`, encerra a sessão |
-| GET | `/autenticacao/eu` | | `200 { email, nomeConta }` |
+| GET | `/autenticacao/eu` | | `200 { email, nomeConta, segundoFatorAtivo }` |
 | POST | `/autenticacao/segundo-fator/ativacao` | | `200 { uriOtpauth }` |
 | POST | `/autenticacao/segundo-fator/ativacao/confirmar` | `{ codigo }` | `204` |
 
-E-mail ou senha errados geram sempre o mesmo `401`, sem dizer qual dos dois falhou.
+E-mail ou senha errados geram sempre o mesmo `401`, sem dizer qual dos dois falhou. Cinco falhas seguidas bloqueiam por 15 minutos, com `429`.
+
+**CSRF:** toda escrita, exceto `entrar`, exige o cabeçalho `X-XSRF-TOKEN` com o valor do cookie `XSRF-TOKEN`, que não é `HttpOnly` de propósito. Sem ele, a resposta é `403` com `ACESSO_NEGADO`. O `HttpClient` do Angular faz isso sozinho.
+
+**Refresh token rotativo:** reapresentar um token já usado encerra todas as sessões do usuário, porque indica possível roubo.
 
 ## Cadastros
 

@@ -17,6 +17,12 @@ API do **Sobramar**, que mostra quanto do futuro financeiro de uma pessoa já es
 
 O Maven não precisa estar instalado: use o `./mvnw`, que já vem no projeto.
 
+## Configuração local
+
+Os segredos vêm do ambiente e nunca entram no Git. Copie `.env.example` para `.env`, preencha e exporte as variáveis antes de subir a aplicação. Sem `SOBRAMAR_JWT_SEGREDO` e `SOBRAMAR_CHAVE_CIFRAGEM`, ela não sobe, de propósito. Os testes geram chaves próprias a cada execução.
+
+Não há cadastro público na Entrega A: a conta é criada ao subir, a partir de `SOBRAMAR_CONTA_INICIAL_EMAIL` e `SOBRAMAR_CONTA_INICIAL_SENHA`.
+
 ## Comandos
 
 | Comando | O que faz |
