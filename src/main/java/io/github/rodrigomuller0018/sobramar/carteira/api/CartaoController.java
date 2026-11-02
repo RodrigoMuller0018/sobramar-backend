@@ -3,6 +3,7 @@ package io.github.rodrigomuller0018.sobramar.carteira.api;
 import io.github.rodrigomuller0018.sobramar.carteira.aplicacao.CarteiraService;
 import io.github.rodrigomuller0018.sobramar.carteira.dominio.Cartao;
 import io.github.rodrigomuller0018.sobramar.carteira.dominio.RegraDeFatura;
+import io.github.rodrigomuller0018.sobramar.carteira.dominio.UsoDoLimite;
 import io.github.rodrigomuller0018.sobramar.shared.seguranca.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -49,15 +50,19 @@ class CartaoController {
             int diaFechamento,
             int diaVencimento,
             Long limiteCentavos,
+            long limiteUsadoCentavos,
+            Long limiteDisponivelCentavos,
             boolean arquivado,
             Instant criadoEm) {
-        static CartaoResponse de(Cartao c) {
+        static CartaoResponse de(Cartao c, long usado) {
             return new CartaoResponse(
                     c.getId(),
                     c.getNome(),
                     c.getRegra().diaFechamento(),
                     c.getRegra().diaVencimento(),
                     c.getLimiteCentavos(),
+                    usado,
+                    c.getLimiteCentavos() == null ? null : c.getLimiteCentavos() - usado,
                     c.isArquivado(),
                     c.getCriadoEm());
         }
@@ -66,9 +71,15 @@ class CartaoController {
     record FaturaSugeridaResponse(String competencia, LocalDate fechamento, LocalDate vencimento) {}
 
     private final CarteiraService servico;
+    private final UsoDoLimite usoDoLimite;
 
-    CartaoController(CarteiraService servico) {
+    CartaoController(CarteiraService servico, UsoDoLimite usoDoLimite) {
         this.servico = servico;
+        this.usoDoLimite = usoDoLimite;
+    }
+
+    private CartaoResponse resposta(Cartao c) {
+        return CartaoResponse.de(c, usoDoLimite.limiteUsadoCentavos(c.getContaId(), c.getId()));
     }
 
     @GetMapping
@@ -77,7 +88,7 @@ class CartaoController {
             @RequestParam(defaultValue = "false") boolean arquivadas,
             Pageable paginacao) {
         return new PagedModel<>(
-                servico.listarCartoes(usuario.contaId(), arquivadas, paginacao).map(CartaoResponse::de));
+                servico.listarCartoes(usuario.contaId(), arquivadas, paginacao).map(this::resposta));
     }
 
     @PostMapping
@@ -88,12 +99,12 @@ class CartaoController {
                 .path("/{id}")
                 .buildAndExpand(cartao.getId())
                 .toUri();
-        return ResponseEntity.created(local).body(CartaoResponse.de(cartao));
+        return ResponseEntity.created(local).body(resposta(cartao));
     }
 
     @GetMapping("/{id}")
     CartaoResponse buscar(@AuthenticationPrincipal UsuarioAutenticado usuario, @PathVariable UUID id) {
-        return CartaoResponse.de(servico.buscarCartao(usuario.contaId(), id));
+        return resposta(servico.buscarCartao(usuario.contaId(), id));
     }
 
     @PutMapping("/{id}")
@@ -101,8 +112,7 @@ class CartaoController {
             @AuthenticationPrincipal UsuarioAutenticado usuario,
             @PathVariable UUID id,
             @Valid @RequestBody CartaoRequest r) {
-        return CartaoResponse.de(
-                servico.atualizarCartao(usuario.contaId(), id, r.nome(), r.regra(), r.limiteCentavos()));
+        return resposta(servico.atualizarCartao(usuario.contaId(), id, r.nome(), r.regra(), r.limiteCentavos()));
     }
 
     @DeleteMapping("/{id}")

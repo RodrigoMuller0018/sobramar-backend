@@ -48,7 +48,7 @@ Problem Details (RFC 9457), com `codigo` estável. O front mapeia `codigo` para 
 | 422 | Regra violada | Ver abaixo |
 | 429 | Excesso de tentativas | `MUITAS_TENTATIVAS`, com `Retry-After` |
 
-Códigos de 422: `PARCELAS_INVALIDAS`, `CARTAO_LIMITE_PARCELAS`, `BOLETO_LIMITE_PARCELAS`, `VALOR_INVALIDO`, `DIA_INVALIDO`, `ORIGEM_OBRIGATORIA`, `ORIGEM_DUPLA`, `CARTEIRA_INCOMPATIVEL`, `PERIODO_INVALIDO`, `CONFIRMACAO_INVALIDA`, `SEGUNDO_FATOR_JA_ATIVO`, `SEGUNDO_FATOR_NAO_INICIADO`, `APELIDO_OBRIGATORIO`, `APELIDO_MUITO_LONGO`, `NOME_INVALIDO`, `CARTEIRA_TIPO_IMUTAVEL`.
+Códigos de 422: `PARCELAS_INVALIDAS`, `CARTAO_LIMITE_PARCELAS`, `BOLETO_LIMITE_PARCELAS`, `VALOR_INVALIDO`, `DIA_INVALIDO`, `ORIGEM_OBRIGATORIA`, `ORIGEM_DUPLA`, `CARTEIRA_INCOMPATIVEL`, `PERIODO_INVALIDO`, `CONFIRMACAO_INVALIDA`, `SEGUNDO_FATOR_JA_ATIVO`, `SEGUNDO_FATOR_NAO_INICIADO`, `APELIDO_OBRIGATORIO`, `APELIDO_MUITO_LONGO`, `NOME_INVALIDO`, `CARTEIRA_TIPO_IMUTAVEL`, `DESCRICAO_INVALIDA`, `FORMA_INVALIDA`, `ESCOPO_INVALIDO`, `OCORRENCIA_EM_CARTAO`, `TRANSFERENCIA_INVALIDA`.
 
 ## Autenticação
 
@@ -87,7 +87,7 @@ Mesmo padrão nos quatro recursos abaixo:
 | `/carteiras` | `{ "tipo": "CONTA", "nome": "Conta principal", "saldoInicialCentavos": 150000 }` (`CONTA`, `DINHEIRO` ou `VALE`) |
 | `/cartoes` | `{ "nome": "Cartão azul", "diaFechamento": 25, "diaVencimento": 5, "limiteCentavos": 500000 }` (limite opcional) |
 
-As respostas repetem o corpo, com `id`, `arquivada` (`arquivado` no cartão) e `criadoEm`. A resposta de cartão inclui também `limiteUsadoCentavos` e `limiteDisponivelCentavos`, com todas as parcelas ainda não pagas somadas (entram junto com os compromissos). O tipo da carteira não muda depois de criada.
+As respostas repetem o corpo, com `id`, `arquivada` (`arquivado` no cartão) e `criadoEm`. A resposta de cartão inclui também `limiteUsadoCentavos` e `limiteDisponivelCentavos`, com todas as parcelas ainda não pagas somadas. `limiteDisponivelCentavos` é nulo em cartão sem limite. O tipo da carteira não muda depois de criada.
 
 ## Compromissos
 
@@ -139,6 +139,8 @@ Igual ao exemplo acima, com `parcelas: 36` e `carteiraId` no lugar de `cartaoId`
 }
 ```
 
+Parcela no cartão se paga pela fatura, não individualmente (`OCORRENCIA_EM_CARTAO`).
+
 **Salário**
 
 Igual ao recorrente, com `natureza: "ENTRADA"` e `certeza: "CERTO"`.
@@ -181,7 +183,7 @@ Em compra no cartão, `faturaInicial` é opcional. Sem ela, o sistema calcula. C
 }
 ```
 
-`escopo` aceita `SOMENTE_ESTA`, `ESTA_E_FUTURAS` e `TODAS`. Só os campos enviados mudam. Editar parcela já paga retorna `OCORRENCIA_JA_PAGA`. Item com `ignorada: true` continua na lista, mas sai dos totais.
+`escopo` aceita `SOMENTE_ESTA`, `ESTA_E_FUTURAS` e `TODAS`. Só os campos enviados mudam. Vencimento, fatura e `ignorada` só valem com `SOMENTE_ESTA`; nos outros escopos, muda só o valor (`ESCOPO_INVALIDO`). Editar parcela já paga retorna `OCORRENCIA_JA_PAGA`. Item com `ignorada: true` continua na lista, mas sai dos totais.
 
 ### Regras
 
