@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>io.github.rodrigomuller0018</groupId>
-	<artifactId>template-backend-spring</artifactId>
+	<artifactId>sobramar-backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>template-backend-spring</name>
-	<description>Modelo de backend Spring Boot com quality gate</description>
+	<name>sobramar-backend</name>
+	<description>Sobramar: API de controle financeiro pessoal</description>
 	<scm>
 		<connection/>
 		<developerConnection/>
