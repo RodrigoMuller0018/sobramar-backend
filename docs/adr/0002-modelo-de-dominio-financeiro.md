@@ -79,7 +79,27 @@ A fatura é calculada, não é uma entidade própria. Com `F` = dia de fechament
 3. Se `V > F`, a fatura vence no mesmo mês em que fecha. Se `V <= F`, no mês seguinte.
 4. A parcela `i` (começando em 0) entra `i` faturas depois da primeira.
 
-**Ainda não confirmado:** a regra 2 varia entre bancos, porque alguns tratam o dia do fechamento de outra forma. A verificação entra no teste A1. Se variar, o cartão ganha um campo de configuração.
+**Ainda não confirmado:** a regra 2 pode variar entre bancos, porque alguns tratam o dia do fechamento de outra forma.
+
+Por isso, o cálculo é uma **sugestão**, e a pessoa pode escolher outra fatura (`fatura_inicial`). Quando a escolha não combinar com a data da compra, como colocar uma compra de novembro numa fatura fechada em outubro, a API devolve um aviso (`FATURA_INCOMPATIVEL_COM_DATA`), sem bloquear. A correção é aceita porque a pessoa conhece a fatura real dela. O aviso evita que um engano passe despercebido.
+
+**Data da compra e vencimento são coisas diferentes** e aparecem separadas: a data da compra não muda entre as parcelas, e o vencimento é o da fatura de cada uma.
+
+**Limite do cartão:** o limite usado soma todas as parcelas ainda não pagas, não só as da fatura atual, porque é o que os bancos costumam comprometer. Isso é calculado, e a confirmação depende do comportamento de cada banco.
+
+### 6.1. Editar e ignorar
+
+Editar uma parcela pede um escopo:
+
+| Escopo | Efeito |
+|---|---|
+| `SOMENTE_ESTA` | Grava um ajuste só naquela ocorrência |
+| `ESTA_E_FUTURAS` | Ajusta o plano a partir daquela ocorrência |
+| `TODAS` | Altera todo o plano. Ocorrências já pagas mantêm o valor real |
+
+O ajuste de uma ocorrência fica em `ocorrencia_ajuste`, sem gravar as outras parcelas. Isso mantém a decisão 2: o futuro continua calculado.
+
+**Ignorar** tira um item dos totais sem apagá-lo. Vale para ocorrência e para lançamento. O item continua visível, marcado como ignorado.
 
 ### 7. O que nunca é gasto nem receita
 
@@ -143,8 +163,9 @@ Todas com `id uuid`, `conta_id` (exceto `conta`), `criado_em` e `atualizado_em`,
 | `categoria` | `nome`, `arquivada` | Nome único por conta |
 | `carteira` | `tipo`, `nome`, `saldo_inicial`, `arquivada` | `tipo` em `CONTA`, `DINHEIRO`, `VALE` |
 | `cartao` | `nome`, `dia_fechamento`, `dia_vencimento`, `limite` | Dias de 1 a 31 |
-| `compromisso` | `natureza`, `forma`, `certeza`, `descricao`, `valor_total`, `parcelas`, `data_inicio`, `data_fim`, `dia_recorrencia`, `recorrencia_anual`, `carteira_id`, `cartao_id`, `pessoa_id`, `categoria_id`, `cancelado_a_partir_de` | Carteira **ou** cartão, nunca os dois; cartão até 48x; boleto até 120x |
-| `lancamento` | `tipo`, `descricao`, `valor`, `data`, `carteira_id`, `carteira_destino_id`, `compromisso_id`, `numero_ocorrencia`, `pessoa_id`, `categoria_id` | Único por `compromisso_id` + `numero_ocorrencia` |
+| `compromisso` | `natureza`, `forma`, `certeza`, `descricao`, `valor_total`, `parcelas`, `data_inicio`, `data_fim`, `dia_recorrencia`, `recorrencia_anual`, `carteira_id`, `cartao_id`, `fatura_inicial`, `pessoa_id`, `categoria_id`, `cancelado_a_partir_de` | Carteira **ou** cartão, nunca os dois; cartão até 48x; boleto até 120x |
+| `ocorrencia_ajuste` | `compromisso_id`, `numero_ocorrencia`, `valor`, `vencimento`, `fatura`, `ignorada` | Único por `compromisso_id` + `numero_ocorrencia` |
+| `lancamento` | `tipo`, `descricao`, `valor`, `data`, `carteira_id`, `carteira_destino_id`, `compromisso_id`, `numero_ocorrencia`, `pessoa_id`, `categoria_id`, `ignorado` | Único por `compromisso_id` + `numero_ocorrencia` |
 | `pagamento_fatura` | `cartao_id`, `competencia`, `valor`, `data`, `carteira_id` | Único por cartão + competência |
 
 ## Consequências
@@ -155,6 +176,6 @@ Todas com `id uuid`, `conta_id` (exceto `conta`), `criado_em` e `atualizado_em`,
 
 ## Em aberto
 
-- Comportamento exato do dia do fechamento nos bancos reais (teste A1).
+- Comportamento exato do dia do fechamento nos bancos reais. O teste na Mobills não respondeu isso, porque a fatura pode ser escolhida à mão.
 - Se a compra estornada entra na Entrega A ou fica na B. Por ora, fica na B.
 - Se a linha do tempo deve mostrar também um saldo acumulado.

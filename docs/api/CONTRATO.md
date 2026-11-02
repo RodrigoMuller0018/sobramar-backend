@@ -82,7 +82,7 @@ Mesmo padrão nos quatro recursos abaixo:
 | `/carteiras` | `{ "tipo": "CONTA", "nome": "Conta principal", "saldoInicialCentavos": 150000 }` (`CONTA`, `DINHEIRO` ou `VALE`) |
 | `/cartoes` | `{ "nome": "Cartão azul", "diaFechamento": 25, "diaVencimento": 5, "limiteCentavos": 500000 }` (limite opcional) |
 
-As respostas repetem o corpo, com `id`, `arquivada` (`arquivado` no cartão) e `criadoEm`.
+As respostas repetem o corpo, com `id`, `arquivada` (`arquivado` no cartão) e `criadoEm`. A resposta de cartão inclui também `limiteUsadoCentavos` e `limiteDisponivelCentavos`, com todas as parcelas ainda não pagas somadas.
 
 ## Compromissos
 
@@ -91,7 +91,8 @@ As respostas repetem o corpo, com `id`, `arquivada` (`arquivado` no cartão) e `
 | GET | `/compromissos?natureza=&forma=&pessoaId=&ativos=true` | `200`, paginado |
 | POST | `/compromissos` | `201` |
 | GET | `/compromissos/{id}` | `200`, com as ocorrências calculadas |
-| PUT | `/compromissos/{id}` | `200`. Vale para as ocorrências ainda não pagas |
+| PUT | `/compromissos/{id}` | `200`. Altera o plano inteiro; ocorrências pagas mantêm o valor real |
+| PATCH | `/compromissos/{id}/ocorrencias/{numero}` | `200`. Edita uma parcela, com escopo (ver abaixo) |
 | POST | `/compromissos/{id}/cancelamento` | `200`. Corpo: `{ "aPartirDe": "2027-06-01" }` |
 | DELETE | `/compromissos/{id}` | `204`. Só sem ocorrências pagas; caso contrário `409` |
 
@@ -149,6 +150,34 @@ Dois compromissos com `forma: "EVENTO"` e `natureza: "ENTRADA"`, cada um com `va
 
 Recorrente de `ENTRADA` com `carteiraId` de uma carteira `VALE`.
 
+### Escolher a fatura
+
+Em compra no cartão, `faturaInicial` é opcional. Sem ela, o sistema calcula. Com ela, a escolha é respeitada, e a resposta traz um aviso se não combinar com a data:
+
+```json
+{
+  "id": "uuid",
+  "faturaInicial": "2026-11",
+  "avisos": [{ "codigo": "FATURA_INCOMPATIVEL_COM_DATA" }]
+}
+```
+
+`GET /cartoes/{id}/fatura-sugerida?dataCompra=2026-11-26` devolve `{ "competencia": "2026-12", "fechamento": "2026-11-25", "vencimento": "2026-12-05" }`, para o formulário mostrar a fatura antes de salvar.
+
+### Editar uma parcela
+
+```json
+{
+  "escopo": "SOMENTE_ESTA",
+  "valorCentavos": 12000,
+  "vencimento": "2027-03-10",
+  "fatura": null,
+  "ignorada": false
+}
+```
+
+`escopo` aceita `SOMENTE_ESTA`, `ESTA_E_FUTURAS` e `TODAS`. Só os campos enviados mudam. Editar parcela já paga retorna `OCORRENCIA_JA_PAGA`. Item com `ignorada: true` continua na lista, mas sai dos totais.
+
 ### Regras
 
 - Exatamente um entre `carteiraId` e `cartaoId`: `ORIGEM_OBRIGATORIA` ou `ORIGEM_DUPLA`.
@@ -183,7 +212,7 @@ Recorrente de `ENTRADA` com `carteiraId` de uma carteira `VALE`.
 }
 ```
 
-`tipo` aceita `GASTO`, `RECEITA` e `TRANSFERENCIA`. A transferência exige `carteiraDestinoId` diferente da origem, e não entra na sobra.
+`tipo` aceita `GASTO`, `RECEITA` e `TRANSFERENCIA`. O campo opcional `ignorado: true` tira o lançamento dos totais sem apagá-lo. A transferência exige `carteiraDestinoId` diferente da origem, e não entra na sobra.
 
 ## Projeção
 
@@ -218,7 +247,9 @@ O período tem no máximo 24 meses, e passar disso retorna `PERIODO_INVALIDO`.
           "natureza": "SAIDA",
           "certeza": "CERTO",
           "valorCentavos": 40000,
+          "dataCompra": "2027-01-15",
           "vencimento": "2027-03-05",
+          "ignorada": false,
           "cartaoId": "uuid",
           "carteiraId": null,
           "pessoaId": null,
