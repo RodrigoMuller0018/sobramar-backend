@@ -1,6 +1,7 @@
 package io.github.rodrigomuller0018.sobramar.shared.config;
 
 import io.github.rodrigomuller0018.sobramar.autenticacao.infra.FiltroDeAutenticacao;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +34,9 @@ class SegurancaConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(a -> a.requestMatchers(HttpMethod.POST, ROTAS_DE_ENTRADA)
+                .authorizeHttpRequests(a -> a.dispatcherTypeMatchers(DispatcherType.ERROR)
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, ROTAS_DE_ENTRADA)
                         .permitAll()
                         .requestMatchers("/actuator/health/**")
                         .permitAll()
