@@ -99,6 +99,8 @@ Editar uma parcela pede um escopo:
 
 O ajuste de uma ocorrência fica em `ocorrencia_ajuste`, sem gravar as outras parcelas. Isso mantém a decisão 2: o futuro continua calculado.
 
+Para não gravar parcelas nem na edição em massa, `ESTA_E_FUTURAS` e `TODAS` guardam só o valor, em um ajuste com `propaga`.
+
 **Ignorar** tira um item dos totais sem apagá-lo. Vale para ocorrência e para lançamento. O item continua visível, marcado como ignorado.
 
 ### 7. O que nunca é gasto nem receita
@@ -163,8 +165,8 @@ Todas com `id uuid`, `conta_id` (exceto `conta`), `criado_em` e `atualizado_em`,
 | `categoria` | `nome`, `arquivada` | Nome único por conta |
 | `carteira` | `tipo`, `nome`, `saldo_inicial`, `arquivada` | `tipo` em `CONTA`, `DINHEIRO`, `VALE` |
 | `cartao` | `nome`, `dia_fechamento`, `dia_vencimento`, `limite` | Dias de 1 a 31 |
-| `compromisso` | `natureza`, `forma`, `certeza`, `descricao`, `valor_total`, `parcelas`, `data_inicio`, `data_fim`, `dia_recorrencia`, `recorrencia_anual`, `carteira_id`, `cartao_id`, `fatura_inicial`, `pessoa_id`, `categoria_id`, `cancelado_a_partir_de` | Carteira **ou** cartão, nunca os dois; cartão até 48x; boleto até 120x |
-| `ocorrencia_ajuste` | `compromisso_id`, `numero_ocorrencia`, `valor`, `vencimento`, `fatura`, `ignorada` | Único por `compromisso_id` + `numero_ocorrencia` |
+| `compromisso` | `natureza`, `forma`, `certeza`, `descricao`, `valor`, `parcelas`, `data_inicio`, `data_fim`, `dia_recorrencia`, `recorrencia_anual`, `carteira_id`, `cartao_id`, `fatura_inicial`, `pessoa_id`, `categoria_id`, `cancelado_a_partir_de` | Carteira **ou** cartão, nunca os dois; cartão até 48x; boleto até 120x |
+| `ocorrencia_ajuste` | `compromisso_id`, `numero_ocorrencia`, `valor`, `vencimento`, `fatura`, `ignorada`, `propaga` | Único por `compromisso_id` + `numero_ocorrencia` |
 | `lancamento` | `tipo`, `descricao`, `valor`, `data`, `carteira_id`, `carteira_destino_id`, `compromisso_id`, `numero_ocorrencia`, `pessoa_id`, `categoria_id`, `ignorado` | Único por `compromisso_id` + `numero_ocorrencia` |
 | `pagamento_fatura` | `cartao_id`, `competencia`, `valor`, `data`, `carteira_id` | Único por cartão + competência |
 
