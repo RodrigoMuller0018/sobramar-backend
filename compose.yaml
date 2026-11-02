@@ -1,0 +1,11 @@
+# Banco local para desenvolvimento. O Spring Boot sobe este compose sozinho ao rodar a aplicação
+# (spring-boot-docker-compose). Credenciais apenas locais — nunca use em produção.
+services:
+  postgres:
+    image: 'postgres:18-alpine'
+    environment:
+      - 'POSTGRES_DB=app'
+      - 'POSTGRES_USER=app'
+      - 'POSTGRES_PASSWORD=app'
+    ports:
+      - '5432'
