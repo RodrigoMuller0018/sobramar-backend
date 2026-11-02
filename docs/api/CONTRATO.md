@@ -312,6 +312,34 @@ Mesma conta da projeção, com uma compra hipotética. **Nada é gravado.**
 
 `ultimoPagamento` responde "quando a terra volta", mesmo fora do período pedido. As regras de validação são as de criação de compromisso. Confirmar a compra é um `POST /compromissos` normal.
 
+## Pendências
+
+### `GET /pendencias?dias=7`
+
+Faturas e parcelas não pagas, vencidas ou que vencem nos próximos `dias` (padrão 7, máximo 31). É calculado, sem tabela própria, e usa as mesmas regras da projeção. Por isso, o número é o mesmo em qualquer tela.
+
+```json
+{
+  "itens": [
+    {
+      "tipo": "FATURA",
+      "descricao": "Cartão azul",
+      "vencimento": "2027-03-05",
+      "diasAteVencimento": 3,
+      "valorCentavos": 120000,
+      "cartaoId": "uuid",
+      "competencia": "2027-03",
+      "compromissoId": null,
+      "numeroOcorrencia": null
+    }
+  ]
+}
+```
+
+`tipo` aceita `FATURA` e `OCORRENCIA`. `diasAteVencimento` é negativo em atraso. Confirmar o pagamento usa as rotas de pagamento acima. Na Entrega A não há notificação externa.
+
+Esconder os valores da tela é só uma preferência do front, sem rota na API.
+
 ## Conta
 
 | Método | Rota | Corpo | Resposta |
