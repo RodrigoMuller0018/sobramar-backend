@@ -21,7 +21,7 @@
 	<properties>
 		<java.version>25</java.version>
 		<!-- Exigido pelo Argon2 do Spring Security -->
-		<bouncycastle.version>1.80</bouncycastle.version>
+		<bouncycastle.version>1.86</bouncycastle.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
 		<!-- Quality gate (ver docs/qualidade.md) -->
