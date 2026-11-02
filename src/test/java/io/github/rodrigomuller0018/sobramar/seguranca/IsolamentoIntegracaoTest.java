@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,7 +19,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -79,19 +84,25 @@ class IsolamentoIntegracaoTest {
         assertThat(semProtecao).isEmpty();
     }
 
-    @Test
-    void naoDeveLerNemAlterarNemArquivarPessoaDeOutraConta() throws Exception {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("recursos")
+    void naoDeveLerNemAlterarNemArquivarRecursoDeOutraConta(String base, String corpo) throws Exception {
         Cookie[] dona = ClienteDeTeste.sessao(mvc, servico);
         Cookie[] outra = ClienteDeTeste.sessao(mvc, servico);
-        String local = mvc.perform(post("/api/v1/pessoas")
+        String local = mvc.perform(post(base)
                         .cookie(dona)
                         .with(comCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"apelido\":\"Ana\"}"))
+                        .content(corpo))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
                 .getHeader("Location");
+        String original = mvc.perform(get(local).cookie(dona))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
         mvc.perform(get(local).cookie(outra))
                 .andExpect(status().isNotFound())
@@ -100,14 +111,39 @@ class IsolamentoIntegracaoTest {
                         .cookie(outra)
                         .with(comCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"apelido\":\"Invadido\"}"))
+                        .content(corpo))
                 .andExpect(status().isNotFound());
         mvc.perform(delete(local).cookie(outra).with(comCsrf())).andExpect(status().isNotFound());
 
-        mvc.perform(get(local).cookie(dona))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.apelido").value("Ana"))
-                .andExpect(jsonPath("$.arquivada").value(false));
+        mvc.perform(get(local).cookie(dona)).andExpect(content().json(original));
+    }
+
+    static Stream<Arguments> recursos() {
+        return Stream.of(
+                Arguments.of("/api/v1/pessoas", "{\"apelido\":\"Ana\"}"),
+                Arguments.of("/api/v1/categorias", "{\"nome\":\"Pets\"}"),
+                Arguments.of(
+                        "/api/v1/carteiras",
+                        "{\"tipo\":\"CONTA\",\"nome\":\"Principal\",\"saldoInicialCentavos\":100}"),
+                Arguments.of("/api/v1/cartoes", "{\"nome\":\"Azul\",\"diaFechamento\":25,\"diaVencimento\":5}"));
+    }
+
+    @Test
+    void naoDeveSugerirFaturaDeCartaoDeOutraConta() throws Exception {
+        Cookie[] dona = ClienteDeTeste.sessao(mvc, servico);
+        Cookie[] outra = ClienteDeTeste.sessao(mvc, servico);
+        String local = mvc.perform(post("/api/v1/cartoes")
+                        .cookie(dona)
+                        .with(comCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nome\":\"Azul\",\"diaFechamento\":25,\"diaVencimento\":5}"))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getHeader("Location");
+
+        mvc.perform(get(local + "/fatura-sugerida").cookie(outra).param("dataCompra", "2026-11-24"))
+                .andExpect(status().isNotFound());
     }
 
     @Test

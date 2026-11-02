@@ -7,6 +7,7 @@ import io.github.rodrigomuller0018.sobramar.autenticacao.dominio.Usuario;
 import io.github.rodrigomuller0018.sobramar.autenticacao.dominio.UsuarioRepository;
 import io.github.rodrigomuller0018.sobramar.autenticacao.infra.CifradorDeSegredos;
 import io.github.rodrigomuller0018.sobramar.autenticacao.infra.ServicoDeTokens;
+import io.github.rodrigomuller0018.sobramar.categoria.aplicacao.CategoriaService;
 import io.github.rodrigomuller0018.sobramar.conta.dominio.Conta;
 import io.github.rodrigomuller0018.sobramar.conta.dominio.ContaRepository;
 import io.github.rodrigomuller0018.sobramar.shared.erro.CredenciaisInvalidasException;
@@ -35,6 +36,7 @@ public class AutenticacaoService {
 
     private final UsuarioRepository usuarios;
     private final ContaRepository contas;
+    private final CategoriaService categorias;
     private final SessaoRenovacaoRepository sessoes;
     private final PasswordEncoder codificador;
     private final ServicoDeTokens tokens;
@@ -46,6 +48,7 @@ public class AutenticacaoService {
     public AutenticacaoService(
             UsuarioRepository usuarios,
             ContaRepository contas,
+            CategoriaService categorias,
             SessaoRenovacaoRepository sessoes,
             PasswordEncoder codificador,
             ServicoDeTokens tokens,
@@ -54,6 +57,7 @@ public class AutenticacaoService {
             Clock clock) {
         this.usuarios = usuarios;
         this.contas = contas;
+        this.categorias = categorias;
         this.sessoes = sessoes;
         this.codificador = codificador;
         this.tokens = tokens;
@@ -79,6 +83,7 @@ public class AutenticacaoService {
         Instant agora = clock.instant();
         Conta conta = new Conta(UUID.randomUUID(), nomeConta, agora);
         contas.criar(conta);
+        categorias.criarPadrao(conta.id());
         usuarios.salvar(Usuario.novo(conta.id(), email, codificador.encode(senha), agora));
         return true;
     }
