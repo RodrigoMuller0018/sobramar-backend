@@ -12,6 +12,7 @@ import io.github.rodrigomuller0018.sobramar.compromisso.dominio.GeradorDeOcorren
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Ocorrencia;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.PagamentosRealizados;
 import io.github.rodrigomuller0018.sobramar.pessoa.aplicacao.PessoaService;
+import io.github.rodrigomuller0018.sobramar.shared.dominio.Calendario;
 import io.github.rodrigomuller0018.sobramar.shared.erro.ConflitoException;
 import io.github.rodrigomuller0018.sobramar.shared.erro.RecursoNaoEncontradoException;
 import io.github.rodrigomuller0018.sobramar.shared.erro.RegraDeNegocioException;
@@ -19,9 +20,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -31,9 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CompromissoService implements UsoDoLimite {
-
-    /** O vencimento é uma data civil no Brasil, não um instante em UTC. */
-    private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
 
     private static final int MESES_A_FRENTE = 12;
     private static final String AVISO_FATURA = "FATURA_INCOMPATIVEL_COM_DATA";
@@ -104,6 +102,10 @@ public class CompromissoService implements UsoDoLimite {
     @Transactional
     public Resultado atualizar(UUID contaId, UUID id, Plano plano) {
         Compromisso atual = buscar(contaId, id);
+        if (mudaAsOcorrencias(atual, plano) && temPagamento(contaId, atual)) {
+            throw new ConflitoException(
+                    "OCORRENCIA_JA_PAGA", "Com parcelas pagas, só descrição, pessoa e categoria podem mudar.");
+        }
         return gravar(contaId, id, plano, atual.canceladoAPartirDe(), atual.criadoEm());
     }
 
@@ -144,9 +146,7 @@ public class CompromissoService implements UsoDoLimite {
     @Transactional
     public void excluir(UUID contaId, UUID id) {
         Compromisso compromisso = buscar(contaId, id);
-        boolean temPagamento = !pagamentos.ocorrenciasPagas(contaId, id).isEmpty()
-                || (compromisso.noCartao() && temOcorrenciaEmFaturaPaga(contaId, compromisso));
-        if (temPagamento) {
+        if (temPagamento(contaId, compromisso)) {
             throw new ConflitoException("OCORRENCIA_JA_PAGA", "O compromisso já tem parcelas pagas.");
         }
         repositorio.excluir(compromisso);
@@ -175,6 +175,12 @@ public class CompromissoService implements UsoDoLimite {
         repositorio.salvarAjuste(id, mesclar(ajustes, numeroDoAjuste, edicao));
         Ocorrencia editada = ocorrencia(contaId, repositorio.buscar(contaId, id).orElseThrow(), numero);
         return new OcorrenciaDetalhada(editada, Situacao.PREVISTO, editada.valorCentavos());
+    }
+
+    /** Os ajustes de um compromisso que quem chama já leu pela conta. */
+    @Transactional(readOnly = true)
+    public List<AjusteOcorrencia> ajustes(UUID compromissoId) {
+        return repositorio.ajustes(compromissoId);
     }
 
     /** A ocorrência, para quem precisa registrar um pagamento. Numero inexistente responde 404. */
@@ -238,6 +244,25 @@ public class CompromissoService implements UsoDoLimite {
         if (c.categoriaId() != null) {
             categorias.buscar(contaId, c.categoriaId());
         }
+    }
+
+    private boolean temPagamento(UUID contaId, Compromisso c) {
+        return !pagamentos.ocorrenciasPagas(contaId, c.id()).isEmpty()
+                || (c.noCartao() && temOcorrenciaEmFaturaPaga(contaId, c));
+    }
+
+    /** Mudar qualquer um destes mudaria valor, data ou numeração de parcelas que já foram pagas. */
+    private static boolean mudaAsOcorrencias(Compromisso c, Plano p) {
+        return c.natureza() != p.natureza()
+                || c.forma() != p.forma()
+                || c.valorCentavos() != p.valorCentavos()
+                || !Objects.equals(c.parcelas(), p.parcelas())
+                || !c.dataInicio().equals(p.dataInicio())
+                || !Objects.equals(c.dataFim(), p.dataFim())
+                || c.recorrenciaAnual() != p.recorrenciaAnual()
+                || !Objects.equals(c.carteiraId(), p.carteiraId())
+                || !Objects.equals(c.cartaoId(), p.cartaoId())
+                || !Objects.equals(c.faturaInicial(), p.faturaInicial());
     }
 
     private List<String> avisos(UUID contaId, Compromisso c) {
@@ -309,7 +334,7 @@ public class CompromissoService implements UsoDoLimite {
     }
 
     private LocalDate hoje() {
-        return LocalDate.ofInstant(clock.instant(), FUSO);
+        return Calendario.hoje(clock);
     }
 
     private static RecursoNaoEncontradoException naoEncontrado() {
