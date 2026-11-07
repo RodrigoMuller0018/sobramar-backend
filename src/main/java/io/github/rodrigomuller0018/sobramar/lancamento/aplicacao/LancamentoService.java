@@ -168,6 +168,24 @@ public class LancamentoService {
                 contaId, cartaoId, competencia, p.valorCentavos(), p.data(), carteira.getId());
     }
 
+    /** "Bate com minha fatura?": o total que o banco cobrou, para conciliar antes de pagar. Não é pagamento. */
+    @Transactional
+    public void informarTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia, long totalCentavos) {
+        carteiras.buscarCartao(contaId, cartaoId);
+        if (totalCentavos <= 0) {
+            throw new RegraDeNegocioException("VALOR_INVALIDO", "O valor precisa ser maior que zero.");
+        }
+        repositorio.informarTotalDaFatura(contaId, cartaoId, competencia, totalCentavos);
+    }
+
+    @Transactional
+    public void esquecerTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia) {
+        carteiras.buscarCartao(contaId, cartaoId);
+        if (!repositorio.esquecerTotalDaFatura(contaId, cartaoId, competencia)) {
+            throw naoEncontrado();
+        }
+    }
+
     @Transactional
     public void desfazerPagamentoDeFatura(UUID contaId, UUID cartaoId, YearMonth competencia) {
         carteiras.buscarCartao(contaId, cartaoId);

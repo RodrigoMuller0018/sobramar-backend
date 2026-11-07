@@ -6,6 +6,7 @@ import io.github.rodrigomuller0018.sobramar.projecao.dominio.Projecao;
 import io.github.rodrigomuller0018.sobramar.shared.seguranca.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
@@ -22,7 +23,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 class ProjecaoController {
 
-    record FaturaResponse(UUID cartaoId, String nomeCartao, LocalDate vencimento, long totalCentavos, boolean paga) {}
+    record FaturaResponse(
+            UUID cartaoId,
+            String nomeCartao,
+            LocalDate vencimento,
+            long totalCentavos,
+            boolean paga,
+            Long informadoCentavos,
+            Long diferencaCentavos,
+            boolean conciliada) {}
 
     record ValeResponse(UUID carteiraId, String nome, long creditosCentavos, long gastosCentavos) {}
 
@@ -32,11 +41,12 @@ class ProjecaoController {
             long compromissosCentavos,
             long sobraCentavos,
             boolean contemEstimativa,
+            Projecao.Confianca confianca,
             List<FaturaResponse> faturas,
             List<Projecao.Item> itens,
             List<ValeResponse> vale) {}
 
-    record ProjecaoResponse(List<MesResponse> meses) {}
+    record ProjecaoResponse(Instant atualizadoEm, List<MesResponse> meses) {}
 
     record CompraRequest(
             @NotNull Long valorTotalCentavos,
@@ -76,6 +86,7 @@ class ProjecaoController {
             @RequestParam(required = false) UUID categoriaId) {
         ProjecaoService.Resultado resultado = servico.projetar(usuario.contaId(), de, ate, pessoaId, categoriaId);
         return new ProjecaoResponse(
+                resultado.atualizadoEm(),
                 resultado.meses().stream().map(mes -> resposta(mes, resultado)).toList());
     }
 
@@ -115,13 +126,17 @@ class ProjecaoController {
                 mes.compromissosCentavos(),
                 mes.sobraCentavos(),
                 mes.contemEstimativa(),
+                mes.confianca(),
                 mes.faturas().stream()
                         .map(f -> new FaturaResponse(
                                 f.cartaoId(),
                                 r.nomesDosCartoes().get(f.cartaoId()),
                                 f.vencimento(),
                                 f.totalCentavos(),
-                                f.paga()))
+                                f.paga(),
+                                f.informadoCentavos(),
+                                f.diferencaCentavos(),
+                                f.conciliada()))
                         .toList(),
                 mes.itens(),
                 mes.vale().stream()

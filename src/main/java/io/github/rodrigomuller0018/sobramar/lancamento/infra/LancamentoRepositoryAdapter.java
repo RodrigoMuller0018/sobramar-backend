@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -28,12 +27,17 @@ class LancamentoRepositoryAdapter implements LancamentoRepository, PagamentosRea
 
     private final LancamentoJpaRepository lancamentos;
     private final PagamentoFaturaJpaRepository faturas;
+    private final FaturaInformadaJpaRepository informadas;
     private final Clock clock;
 
     LancamentoRepositoryAdapter(
-            LancamentoJpaRepository lancamentos, PagamentoFaturaJpaRepository faturas, Clock clock) {
+            LancamentoJpaRepository lancamentos,
+            PagamentoFaturaJpaRepository faturas,
+            FaturaInformadaJpaRepository informadas,
+            Clock clock) {
         this.lancamentos = lancamentos;
         this.faturas = faturas;
+        this.informadas = informadas;
         this.clock = clock;
     }
 
@@ -128,16 +132,44 @@ class LancamentoRepositoryAdapter implements LancamentoRepository, PagamentosRea
     }
 
     @Override
+    public void informarTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia, long totalCentavos) {
+        FaturaInformadaEntity e = informadas
+                .findByContaIdAndCartaoIdAndCompetencia(contaId, cartaoId, competencia.toString())
+                .orElseGet(FaturaInformadaEntity::novo);
+        if (e.id == null) {
+            e.id = UUID.randomUUID();
+            e.contaId = contaId;
+            e.cartaoId = cartaoId;
+            e.competencia = competencia.toString();
+        }
+        e.total = Dinheiro.paraBanco(totalCentavos);
+        e.informadoEm = clock.instant();
+        informadas.saveAndFlush(e);
+    }
+
+    @Override
+    public boolean esquecerTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia) {
+        return informadas.deleteByContaIdAndCartaoIdAndCompetencia(contaId, cartaoId, competencia.toString()) > 0;
+    }
+
+    @Override
+    public List<FaturaInformada> faturasInformadas(UUID contaId, UUID cartaoId) {
+        return informadas.findByContaIdAndCartaoId(contaId, cartaoId).stream()
+                .map(e -> new FaturaInformada(YearMonth.parse(e.competencia), Dinheiro.deBanco(e.total), e.informadoEm))
+                .toList();
+    }
+
+    @Override
     public Map<Integer, Long> ocorrenciasPagas(UUID contaId, UUID compromissoId) {
         return lancamentos.findByContaIdAndCompromissoId(contaId, compromissoId).stream()
                 .collect(Collectors.toMap(e -> e.numeroOcorrencia, e -> Dinheiro.deBanco(e.valor)));
     }
 
     @Override
-    public Set<YearMonth> faturasPagas(UUID contaId, UUID cartaoId) {
+    public List<FaturaPaga> faturasPagasDetalhadas(UUID contaId, UUID cartaoId) {
         return faturas.findByContaIdAndCartaoId(contaId, cartaoId).stream()
-                .map(e -> YearMonth.parse(e.competencia))
-                .collect(Collectors.toSet());
+                .map(e -> new FaturaPaga(YearMonth.parse(e.competencia), Dinheiro.deBanco(e.valor), e.criadoEm))
+                .toList();
     }
 
     private static Lancamento paraDominio(LancamentoEntity e) {

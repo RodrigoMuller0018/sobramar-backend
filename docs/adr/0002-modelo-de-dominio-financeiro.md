@@ -153,6 +153,14 @@ Módulos por feature, cada um com `api`, `aplicacao`, `dominio` e `infra`:
 
 `projecao` lê os outros módulos por interfaces públicas, sem fazer join nas tabelas deles.
 
+### 11.1. Confiança, parte e atualização (07/11/2026)
+
+Acrescentado pela concepção do produto (conceito "Folha": a sobra a lápis até conciliar, em tinta depois).
+
+- **Confiança da sobra.** Cada mês carrega `FIRME` ou `ESTIMADA`. É estimada enquanto houver item `ESTIMADO` ainda previsto ou fatura cujo total calculado não bate com o total informado pelo banco. A conciliação usa o total que a pessoa informou do banco (`fatura_informada.total`, "bate com minha fatura?") ou, na falta dele, o valor com que a fatura foi paga (`pagamento_fatura.valor`). Informar não é pagar: a tabela é separada de propósito.
+- **Parte.** Um compromisso pode ser só parte desta conta (`parte` de 1 a 100 por cento), para quem divide aluguel sem juntar contas. A parte entra no total antes de dividir as parcelas, com meio centavo arredondado para cima. Lançamento avulso e pagamento informado pela pessoa já são o valor real, sem parte.
+- **Atualizado em.** A projeção devolve o instante mais recente entre compromissos criados, lançamentos e faturas pagas, porque uma sobra desatualizada é uma sobra falsa. Editar um compromisso não muda a data; isso é uma limitação aceita.
+
 ### 12. Tabelas
 
 Todas com `id uuid`, `conta_id` (exceto `conta`), `criado_em` e `atualizado_em`, com constraints nomeadas e FKs indexadas.
@@ -165,10 +173,11 @@ Todas com `id uuid`, `conta_id` (exceto `conta`), `criado_em` e `atualizado_em`,
 | `categoria` | `nome`, `arquivada` | Nome único por conta |
 | `carteira` | `tipo`, `nome`, `saldo_inicial`, `arquivada` | `tipo` em `CONTA`, `DINHEIRO`, `VALE` |
 | `cartao` | `nome`, `dia_fechamento`, `dia_vencimento`, `limite` | Dias de 1 a 31 |
-| `compromisso` | `natureza`, `forma`, `certeza`, `descricao`, `valor`, `parcelas`, `data_inicio`, `data_fim`, `dia_recorrencia`, `recorrencia_anual`, `carteira_id`, `cartao_id`, `fatura_inicial`, `pessoa_id`, `categoria_id`, `cancelado_a_partir_de` | Carteira **ou** cartão, nunca os dois; cartão até 48x; boleto até 120x |
+| `compromisso` | `natureza`, `forma`, `certeza`, `descricao`, `valor`, `parcelas`, `data_inicio`, `data_fim`, `dia_recorrencia`, `recorrencia_anual`, `carteira_id`, `cartao_id`, `fatura_inicial`, `pessoa_id`, `categoria_id`, `parte`, `cancelado_a_partir_de` | Carteira **ou** cartão, nunca os dois; cartão até 48x; boleto até 120x; `parte` nula ou de 1 a 100 |
 | `ocorrencia_ajuste` | `compromisso_id`, `numero_ocorrencia`, `valor`, `vencimento`, `fatura`, `ignorada`, `propaga` | Único por `compromisso_id` + `numero_ocorrencia` |
 | `lancamento` | `tipo`, `descricao`, `valor`, `data`, `carteira_id`, `carteira_destino_id`, `compromisso_id`, `numero_ocorrencia`, `pessoa_id`, `categoria_id`, `ignorado` | Único por `compromisso_id` + `numero_ocorrencia` |
 | `pagamento_fatura` | `cartao_id`, `competencia`, `valor`, `data`, `carteira_id` | Único por cartão + competência |
+| `fatura_informada` | `cartao_id`, `competencia`, `total`, `informado_em` | Único por cartão + competência; só concilia, não paga |
 
 ## Consequências
 

@@ -28,4 +28,9 @@ public interface LancamentoRepository {
             UUID contaId, UUID cartaoId, YearMonth competencia, long valorCentavos, LocalDate data, UUID carteiraId);
 
     boolean excluirPagamentoDeFatura(UUID contaId, UUID cartaoId, YearMonth competencia);
+
+    /** Grava ou substitui o total que o banco cobrou naquela fatura. */
+    void informarTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia, long totalCentavos);
+
+    boolean esquecerTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia);
 }

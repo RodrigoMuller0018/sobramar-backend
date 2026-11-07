@@ -57,7 +57,8 @@ class CompromissoController {
             UUID cartaoId,
             YearMonth faturaInicial,
             UUID pessoaId,
-            UUID categoriaId) {
+            UUID categoriaId,
+            Integer parte) {
 
         Plano plano() {
             long valor = forma == Compromisso.Forma.PARCELADO
@@ -77,7 +78,8 @@ class CompromissoController {
                     cartaoId,
                     faturaInicial,
                     pessoaId,
-                    categoriaId);
+                    categoriaId,
+                    parte);
         }
     }
 
@@ -124,6 +126,7 @@ class CompromissoController {
             YearMonth faturaInicial,
             UUID pessoaId,
             UUID categoriaId,
+            Integer parte,
             LocalDate canceladoAPartirDe,
             List<Aviso> avisos,
             List<OcorrenciaResponse> ocorrencias) {
@@ -145,6 +148,7 @@ class CompromissoController {
                     c.faturaInicial(),
                     c.pessoaId(),
                     c.categoriaId(),
+                    c.parte(),
                     c.canceladoAPartirDe(),
                     avisos.stream().map(Aviso::new).toList(),
                     ocorrencias);

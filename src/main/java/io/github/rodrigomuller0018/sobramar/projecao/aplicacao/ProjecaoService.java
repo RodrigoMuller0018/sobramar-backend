@@ -9,6 +9,8 @@ import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Compromisso;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.GeradorDeOcorrencias;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Ocorrencia;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.PagamentosRealizados;
+import io.github.rodrigomuller0018.sobramar.compromisso.dominio.PagamentosRealizados.FaturaInformada;
+import io.github.rodrigomuller0018.sobramar.compromisso.dominio.PagamentosRealizados.FaturaPaga;
 import io.github.rodrigomuller0018.sobramar.lancamento.aplicacao.LancamentoService;
 import io.github.rodrigomuller0018.sobramar.lancamento.dominio.Lancamento;
 import io.github.rodrigomuller0018.sobramar.lancamento.dominio.LancamentoRepository;
@@ -22,10 +24,12 @@ import io.github.rodrigomuller0018.sobramar.projecao.dominio.Projecao;
 import io.github.rodrigomuller0018.sobramar.shared.dominio.Calendario;
 import io.github.rodrigomuller0018.sobramar.shared.erro.RegraDeNegocioException;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,8 +46,12 @@ public class ProjecaoService {
     private static final int MESES_MAXIMOS = 24;
     private static final int DIAS_MAXIMOS = 31;
 
+    /** @param atualizadoEm quando os dados da conta mudaram pela última vez; nulo em conta vazia */
     public record Resultado(
-            List<Projecao.Mes> meses, Map<UUID, String> nomesDosCartoes, Map<UUID, String> nomesDasCarteiras) {}
+            List<Projecao.Mes> meses,
+            Map<UUID, String> nomesDosCartoes,
+            Map<UUID, String> nomesDasCarteiras,
+            Instant atualizadoEm) {}
 
     public record Compra(long valorTotalCentavos, int parcelas, LocalDate dataInicio, UUID cartaoId, UUID carteiraId) {}
 
@@ -55,7 +63,8 @@ public class ProjecaoService {
             LocalDate primeiroPagamento,
             LocalDate ultimoPagamento) {}
 
-    private record Dados(Entrada entrada, Map<UUID, String> cartoes, Map<UUID, String> carteiras) {}
+    private record Dados(
+            Entrada entrada, Map<UUID, String> cartoes, Map<UUID, String> carteiras, Instant atualizadoEm) {}
 
     private final CompromissoService compromissos;
     private final LancamentoService lancamentos;
@@ -83,7 +92,8 @@ public class ProjecaoService {
         return new Resultado(
                 CalculadoraDeProjecao.calcular(dados.entrada(), de, ate, new Filtro(pessoaId, categoriaId)),
                 dados.cartoes(),
-                dados.carteiras());
+                dados.carteiras(),
+                dados.atualizadoEm());
     }
 
     /** Mesma conta da projeção, com uma compra hipotética. Nada é gravado. */
@@ -99,6 +109,7 @@ public class ProjecaoService {
                 dados.entrada().lancamentos(),
                 dados.entrada().regrasDosCartoes(),
                 dados.entrada().faturasPagas(),
+                dados.entrada().faturasInformadas(),
                 dados.entrada().carteirasDeVale());
 
         List<Projecao.Mes> atual = CalculadoraDeProjecao.calcular(dados.entrada(), de, ate, Filtro.NENHUM);
@@ -155,6 +166,7 @@ public class ProjecaoService {
                 null,
                 null,
                 null,
+                null,
                 clock.instant());
     }
 
@@ -171,16 +183,46 @@ public class ProjecaoService {
                 .listar(contaId, new LancamentoRepository.Filtro(null, null, null, null, null), Pageable.unpaged())
                 .getContent();
         Map<UUID, RegraDeFatura> regras = cartoes.stream().collect(Collectors.toMap(Cartao::getId, Cartao::getRegra));
-        Map<UUID, Set<YearMonth>> faturasPagas = cartoes.stream()
-                .collect(Collectors.toMap(Cartao::getId, c -> pagamentos.faturasPagas(contaId, c.getId())));
+        Map<UUID, List<FaturaPaga>> pagas = cartoes.stream()
+                .collect(Collectors.toMap(Cartao::getId, c -> pagamentos.faturasPagasDetalhadas(contaId, c.getId())));
+        Map<UUID, List<FaturaInformada>> informadas = cartoes.stream()
+                .collect(Collectors.toMap(Cartao::getId, c -> pagamentos.faturasInformadas(contaId, c.getId())));
+        Map<UUID, Set<YearMonth>> faturasPagas = new HashMap<>();
+        Map<UUID, Map<YearMonth, Long>> faturasInformadas = new HashMap<>();
+        pagas.forEach((cartao, lista) -> {
+            faturasPagas.put(cartao, lista.stream().map(FaturaPaga::competencia).collect(Collectors.toSet()));
+            Map<YearMonth, Long> totais = new HashMap<>();
+            lista.forEach(f -> totais.put(f.competencia(), f.valorCentavos()));
+            // O total informado pela pessoa vale mais que o valor pago: é o que ela leu no banco.
+            informadas.getOrDefault(cartao, List.of()).forEach(f -> totais.put(f.competencia(), f.totalCentavos()));
+            faturasInformadas.put(cartao, totais);
+        });
         Set<UUID> vales = todasCarteiras.stream()
                 .filter(c -> c.getTipo() == Carteira.Tipo.VALE)
                 .map(Carteira::getId)
                 .collect(Collectors.toSet());
         return new Dados(
-                new Entrada(planos, todosLancamentos, regras, faturasPagas, vales),
+                new Entrada(planos, todosLancamentos, regras, faturasPagas, faturasInformadas, vales),
                 cartoes.stream().collect(Collectors.toMap(Cartao::getId, Cartao::getNome)),
-                todasCarteiras.stream().collect(Collectors.toMap(Carteira::getId, Carteira::getNome)));
+                todasCarteiras.stream().collect(Collectors.toMap(Carteira::getId, Carteira::getNome)),
+                atualizadoEm(planos, todosLancamentos, pagas, informadas));
+    }
+
+    /**
+     * Edição de compromisso mantém o {@code criadoEm}; o que bumpa a data é lançar, dar baixa, pagar fatura e
+     * informar o total do banco.
+     */
+    private static Instant atualizadoEm(
+            List<CompromissoComAjustes> planos,
+            List<Lancamento> lancamentos,
+            Map<UUID, List<FaturaPaga>> pagas,
+            Map<UUID, List<FaturaInformada>> informadas) {
+        List<Instant> instantes = new ArrayList<>();
+        planos.forEach(c -> instantes.add(c.compromisso().criadoEm()));
+        lancamentos.forEach(l -> instantes.add(l.criadoEm()));
+        pagas.values().forEach(lista -> lista.forEach(f -> instantes.add(f.pagaEm())));
+        informadas.values().forEach(lista -> lista.forEach(f -> instantes.add(f.informadoEm())));
+        return Projecao.ultimaAtualizacao(instantes).orElse(null);
     }
 
     private static void validarPeriodo(YearMonth de, YearMonth ate) {

@@ -2,6 +2,7 @@ package io.github.rodrigomuller0018.sobramar.projecao;
 
 import static io.github.rodrigomuller0018.sobramar.ClienteDeTeste.comCsrf;
 import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -187,6 +188,45 @@ class ProjecaoIntegracaoTest {
 
         mvc.perform(get("/api/v1/pendencias").cookie(sessao))
                 .andExpect(jsonPath("$.itens.length()").value(0));
+    }
+
+    @Test
+    void informarOTotalDaFaturaDeveConciliarEDeixarOMesFirme() throws Exception {
+        criar(COMPROMISSOS, salario());
+        criar(
+                COMPROMISSOS,
+                ("{\"natureza\":\"SAIDA\",\"forma\":\"PARCELADO\",\"certeza\":\"CERTO\",\"descricao\":\"TV\","
+                                + "\"valorTotalCentavos\":30000,\"parcelas\":1,\"dataInicio\":\"2027-01-10\",\"cartaoId\":\"%s\"}")
+                        .formatted(cartaoId));
+
+        mvc.perform(get(PROJECAO).cookie(sessao).param("de", "2027-02").param("ate", "2027-02"))
+                .andExpect(jsonPath("$.meses[0].confianca").value("ESTIMADA"))
+                .andExpect(jsonPath("$.meses[0].faturas[0].conciliada").value(false))
+                .andExpect(jsonPath("$.atualizadoEm").isNotEmpty());
+
+        enviar(put("/api/v1/cartoes/%s/faturas/2027-02/total".formatted(cartaoId)), "{\"totalCentavos\":35000}")
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get(PROJECAO).cookie(sessao).param("de", "2027-02").param("ate", "2027-02"))
+                .andExpect(jsonPath("$.meses[0].confianca").value("ESTIMADA"))
+                .andExpect(jsonPath("$.meses[0].faturas[0].informadoCentavos").value(35000))
+                .andExpect(jsonPath("$.meses[0].faturas[0].diferencaCentavos").value(5000));
+
+        enviar(put("/api/v1/cartoes/%s/faturas/2027-02/total".formatted(cartaoId)), "{\"totalCentavos\":30000}")
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get(PROJECAO).cookie(sessao).param("de", "2027-02").param("ate", "2027-02"))
+                .andExpect(jsonPath("$.meses[0].confianca").value("FIRME"))
+                .andExpect(jsonPath("$.meses[0].faturas[0].conciliada").value(true));
+
+        mvc.perform(delete("/api/v1/cartoes/%s/faturas/2027-02/total".formatted(cartaoId))
+                        .cookie(sessao)
+                        .with(comCsrf()))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/cartoes/%s/faturas/2027-02/total".formatted(cartaoId))
+                        .cookie(sessao)
+                        .with(comCsrf()))
+                .andExpect(status().isNotFound());
     }
 
     @Test
