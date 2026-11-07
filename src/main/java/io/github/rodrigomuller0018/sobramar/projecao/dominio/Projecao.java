@@ -36,6 +36,8 @@ public final class Projecao {
             Compromisso.Natureza natureza,
             Compromisso.Certeza certeza,
             long valorCentavos,
+            /** Em estimativa com faixa, até quanto pode chegar; nulo nos demais. */
+            Long valorMaximoCentavos,
             LocalDate dataCompra,
             LocalDate vencimento,
             boolean ignorada,
@@ -69,13 +71,20 @@ public final class Projecao {
             long compromissosCentavos,
             boolean contemEstimativa,
             Confianca confianca,
+            /** O que as entradas estimadas com faixa podem render além do mínimo, enquanto previstas. */
+            long extraPossivelCentavos,
             List<Fatura> faturas,
             List<Item> itens,
             List<Vale> vale) {
 
-        /** Pode ser negativa. */
+        /** Pode ser negativa. Conta com o mínimo das estimativas: o incerto nunca entra na sobra firme. */
         public long sobraCentavos() {
             return receitasCentavos - compromissosCentavos;
+        }
+
+        /** "Pode chegar a": a sobra se as entradas estimadas vierem no máximo. */
+        public long sobraMaximaCentavos() {
+            return sobraCentavos() + extraPossivelCentavos;
         }
     }
 

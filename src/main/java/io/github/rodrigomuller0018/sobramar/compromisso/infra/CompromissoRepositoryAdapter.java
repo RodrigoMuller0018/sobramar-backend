@@ -47,6 +47,7 @@ class CompromissoRepositoryAdapter implements CompromissoRepository {
         e.pessoaId = c.pessoaId();
         e.categoriaId = c.categoriaId();
         e.parte = c.parte();
+        e.valorMaximo = c.valorMaximoCentavos() == null ? null : Dinheiro.paraBanco(c.valorMaximoCentavos());
         e.canceladoAPartirDe = c.canceladoAPartirDe();
         e.criadoEm = c.criadoEm();
         return paraDominio(compromissos.save(e));
@@ -146,6 +147,7 @@ class CompromissoRepositoryAdapter implements CompromissoRepository {
                 e.pessoaId,
                 e.categoriaId,
                 e.parte,
+                e.valorMaximo == null ? null : Dinheiro.deBanco(e.valorMaximo),
                 e.canceladoAPartirDe,
                 e.criadoEm);
     }

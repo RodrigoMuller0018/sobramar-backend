@@ -40,6 +40,7 @@ class ProjecaoController {
             long receitasCentavos,
             long compromissosCentavos,
             long sobraCentavos,
+            long sobraMaximaCentavos,
             boolean contemEstimativa,
             Projecao.Confianca confianca,
             List<FaturaResponse> faturas,
@@ -125,6 +126,7 @@ class ProjecaoController {
                 mes.receitasCentavos(),
                 mes.compromissosCentavos(),
                 mes.sobraCentavos(),
+                mes.sobraMaximaCentavos(),
                 mes.contemEstimativa(),
                 mes.confianca(),
                 mes.faturas().stream()

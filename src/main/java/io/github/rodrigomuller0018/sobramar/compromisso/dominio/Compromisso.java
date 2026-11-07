@@ -28,6 +28,7 @@ public record Compromisso(
         UUID pessoaId,
         UUID categoriaId,
         Integer parte,
+        Long valorMaximoCentavos,
         LocalDate canceladoAPartirDe,
         Instant criadoEm) {
 
@@ -58,6 +59,10 @@ public record Compromisso(
         validarParcelas(forma, parcelas, cartaoId);
         if (parte != null && (parte < 1 || parte > PARTE_INTEIRA)) {
             throw new RegraDeNegocioException("PARTE_INVALIDA", "A parte precisa ficar entre 1 e 100 por cento.");
+        }
+        if (valorMaximoCentavos != null && (certeza != Certeza.ESTIMADO || valorMaximoCentavos < valorCentavos)) {
+            throw new RegraDeNegocioException(
+                    "VALOR_MAXIMO_INVALIDO", "O valor máximo só vale em estimativa e não pode ser menor que o valor.");
         }
         if (valorCentavos <= 0) {
             throw new RegraDeNegocioException("VALOR_INVALIDO", "O valor precisa ser maior que zero.");
@@ -104,6 +109,7 @@ public record Compromisso(
                 pessoaId,
                 categoriaId,
                 parte,
+                valorMaximoCentavos,
                 aPartirDe,
                 criadoEm);
     }

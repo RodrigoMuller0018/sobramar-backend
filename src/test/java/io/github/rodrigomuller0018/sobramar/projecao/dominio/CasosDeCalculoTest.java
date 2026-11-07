@@ -76,8 +76,33 @@ class CasosDeCalculoTest {
                 null,
                 null,
                 parte,
+                null,
                 canceladoAPartirDe == null ? null : LocalDate.parse(canceladoAPartirDe),
                 Instant.EPOCH);
+    }
+
+    private Compromisso entradaComFaixa(long minimo, Long maximo, Certeza certeza) {
+        return adicionar(new Compromisso(
+                UUID.randomUUID(),
+                CONTA,
+                Natureza.ENTRADA,
+                Forma.EVENTO,
+                certeza,
+                "13º",
+                minimo,
+                null,
+                LocalDate.parse("2027-11-20"),
+                null,
+                false,
+                CONTA,
+                null,
+                null,
+                null,
+                null,
+                null,
+                maximo,
+                null,
+                Instant.EPOCH));
     }
 
     private Compromisso boleto(long total, int parcelas, String inicio) {
@@ -383,6 +408,42 @@ class CasosDeCalculoTest {
             assertThat(Projecao.ultimaAtualizacao(List.of(antigo, recente, antigo)))
                     .contains(recente);
             assertThat(Projecao.ultimaAtualizacao(List.of())).isEmpty();
+        }
+    }
+
+    @Nested
+    class Faixa {
+
+        @Test
+        void caso28_decimoTerceiroEstimadoEntraComOMinimoEMostraAteOndePodeChegar() {
+            entradaComFaixa(250_000, 300_000L, Certeza.ESTIMADO);
+
+            Mes novembro = mes("2027-11");
+
+            assertThat(novembro.sobraCentavos()).isEqualTo(250_000);
+            assertThat(novembro.sobraMaximaCentavos()).isEqualTo(300_000);
+            assertThat(novembro.confianca()).isEqualTo(Confianca.ESTIMADA);
+            assertThat(novembro.itens().getFirst().valorMaximoCentavos()).isEqualTo(300_000);
+        }
+
+        @Test
+        void caso29_depoisDeEntrarAFaixaSomeEValeOValorReal() {
+            Compromisso decimo = entradaComFaixa(250_000, 300_000L, Certeza.ESTIMADO);
+            lancamentos.add(lancamento(Lancamento.Tipo.RECEITA, 280_000, "2027-11-20", CONTA, null, decimo.id(), 1));
+
+            Mes novembro = mes("2027-11");
+
+            assertThat(novembro.sobraCentavos()).isEqualTo(280_000);
+            assertThat(novembro.sobraMaximaCentavos()).isEqualTo(280_000);
+            assertThat(novembro.itens().getFirst().valorMaximoCentavos()).isNull();
+        }
+
+        @Test
+        void caso30_faixaSoValeEmEstimativaENuncaAbaixoDoMinimo() {
+            assertThatThrownBy(() -> entradaComFaixa(250_000, 300_000L, Certeza.CERTO))
+                    .isInstanceOf(RegraDeNegocioException.class);
+            assertThatThrownBy(() -> entradaComFaixa(250_000, 200_000L, Certeza.ESTIMADO))
+                    .isInstanceOf(RegraDeNegocioException.class);
         }
     }
 
