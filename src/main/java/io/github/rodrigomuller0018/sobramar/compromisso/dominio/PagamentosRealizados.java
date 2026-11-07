@@ -14,10 +14,15 @@ public interface PagamentosRealizados {
     /** Uma fatura paga: o valor é o total que o banco cobrou, e serve para conciliar a fatura calculada. */
     record FaturaPaga(YearMonth competencia, long valorCentavos, Instant pagaEm) {}
 
+    /** O total que o banco cobrou, informado pela pessoa antes de pagar ("bate com minha fatura?"). */
+    record FaturaInformada(YearMonth competencia, long totalCentavos, Instant informadoEm) {}
+
     /** Número da ocorrência para o valor real pago. */
     Map<Integer, Long> ocorrenciasPagas(UUID contaId, UUID compromissoId);
 
     List<FaturaPaga> faturasPagasDetalhadas(UUID contaId, UUID cartaoId);
+
+    List<FaturaInformada> faturasInformadas(UUID contaId, UUID cartaoId);
 
     default Set<YearMonth> faturasPagas(UUID contaId, UUID cartaoId) {
         return faturasPagasDetalhadas(contaId, cartaoId).stream()

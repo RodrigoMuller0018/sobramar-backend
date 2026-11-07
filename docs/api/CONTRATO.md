@@ -207,6 +207,8 @@ Em compra no cartão, `faturaInicial` é opcional. Sem ela, o sistema calcula. C
 | DELETE | `/compromissos/{id}/ocorrencias/{numero}/pagamento` | `204` |
 | POST | `/cartoes/{id}/faturas/{competencia}/pagamento` | `201`. Corpo: `{ "data", "valorCentavos", "carteiraId" }` |
 | DELETE | `/cartoes/{id}/faturas/{competencia}/pagamento` | `204` |
+| PUT | `/cartoes/{id}/faturas/{competencia}/total` | `204`. Corpo: `{ "totalCentavos" }`. "Bate com minha fatura?": o total que o banco cobrou, para conciliar antes de pagar. Grava ou substitui; não é pagamento nem gasto |
+| DELETE | `/cartoes/{id}/faturas/{competencia}/total` | `204`; `404` sem total informado |
 
 **Gasto avulso**
 
@@ -288,7 +290,7 @@ O período tem no máximo 24 meses, e passar disso retorna `PERIODO_INVALIDO`.
 - `situacao`: `PREVISTO` ou `REALIZADO`. Com `REALIZADO`, `valorCentavos` é o valor real.
 - `sobraCentavos` = `receitasCentavos` − `compromissosCentavos`. **Pode ser negativa**, e o front mostra isso sem tom de alarme.
 - `confianca`: `FIRME` ou `ESTIMADA`. É `ESTIMADA` enquanto o mês tiver item estimado ainda previsto ou alguma fatura não conciliada. O front mostra a sobra a lápis quando estimada e em tinta quando firme, e escreve a palavra, porque cor sozinha não basta.
-- `informadoCentavos` é o total que o banco cobrou naquela fatura (hoje, o valor com que ela foi paga); `diferencaCentavos` = informado − calculado, o "falta explicar"; `conciliada` é verdadeiro quando a diferença é zero. Sem total informado, os dois primeiros vêm nulos. Com filtro por pessoa ou categoria a fatura é parcial, então nunca se concilia.
+- `informadoCentavos` é o total que o banco cobrou naquela fatura: o informado em `PUT /cartoes/{id}/faturas/{competencia}/total` ou, na falta dele, o valor com que a fatura foi paga; `diferencaCentavos` = informado − calculado, o "falta explicar"; `conciliada` é verdadeiro quando a diferença é zero. Sem total informado, os dois primeiros vêm nulos. Com filtro por pessoa ou categoria a fatura é parcial, então nunca se concilia.
 - `atualizadoEm` é o instante mais recente em que um compromisso foi criado, um lançamento entrou ou uma fatura foi paga; nulo em conta vazia. Serve para o "atualizado há N dias" ao lado da sobra.
 - `vale` nunca entra na sobra, e seus itens não aparecem em `itens`.
 - Parcela paga conta no mês do pagamento, com o valor real.

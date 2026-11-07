@@ -9,6 +9,7 @@ import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Compromisso;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.GeradorDeOcorrencias;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Ocorrencia;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.PagamentosRealizados;
+import io.github.rodrigomuller0018.sobramar.compromisso.dominio.PagamentosRealizados.FaturaInformada;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.PagamentosRealizados.FaturaPaga;
 import io.github.rodrigomuller0018.sobramar.lancamento.aplicacao.LancamentoService;
 import io.github.rodrigomuller0018.sobramar.lancamento.dominio.Lancamento;
@@ -184,13 +185,17 @@ public class ProjecaoService {
         Map<UUID, RegraDeFatura> regras = cartoes.stream().collect(Collectors.toMap(Cartao::getId, Cartao::getRegra));
         Map<UUID, List<FaturaPaga>> pagas = cartoes.stream()
                 .collect(Collectors.toMap(Cartao::getId, c -> pagamentos.faturasPagasDetalhadas(contaId, c.getId())));
+        Map<UUID, List<FaturaInformada>> informadas = cartoes.stream()
+                .collect(Collectors.toMap(Cartao::getId, c -> pagamentos.faturasInformadas(contaId, c.getId())));
         Map<UUID, Set<YearMonth>> faturasPagas = new HashMap<>();
         Map<UUID, Map<YearMonth, Long>> faturasInformadas = new HashMap<>();
         pagas.forEach((cartao, lista) -> {
             faturasPagas.put(cartao, lista.stream().map(FaturaPaga::competencia).collect(Collectors.toSet()));
-            faturasInformadas.put(
-                    cartao,
-                    lista.stream().collect(Collectors.toMap(FaturaPaga::competencia, FaturaPaga::valorCentavos)));
+            Map<YearMonth, Long> totais = new HashMap<>();
+            lista.forEach(f -> totais.put(f.competencia(), f.valorCentavos()));
+            // O total informado pela pessoa vale mais que o valor pago: é o que ela leu no banco.
+            informadas.getOrDefault(cartao, List.of()).forEach(f -> totais.put(f.competencia(), f.totalCentavos()));
+            faturasInformadas.put(cartao, totais);
         });
         Set<UUID> vales = todasCarteiras.stream()
                 .filter(c -> c.getTipo() == Carteira.Tipo.VALE)
@@ -200,16 +205,23 @@ public class ProjecaoService {
                 new Entrada(planos, todosLancamentos, regras, faturasPagas, faturasInformadas, vales),
                 cartoes.stream().collect(Collectors.toMap(Cartao::getId, Cartao::getNome)),
                 todasCarteiras.stream().collect(Collectors.toMap(Carteira::getId, Carteira::getNome)),
-                atualizadoEm(planos, todosLancamentos, pagas));
+                atualizadoEm(planos, todosLancamentos, pagas, informadas));
     }
 
-    /** Edição de compromisso mantém o {@code criadoEm}; o que bumpa a data é lançar, dar baixa e pagar fatura. */
+    /**
+     * Edição de compromisso mantém o {@code criadoEm}; o que bumpa a data é lançar, dar baixa, pagar fatura e
+     * informar o total do banco.
+     */
     private static Instant atualizadoEm(
-            List<CompromissoComAjustes> planos, List<Lancamento> lancamentos, Map<UUID, List<FaturaPaga>> pagas) {
+            List<CompromissoComAjustes> planos,
+            List<Lancamento> lancamentos,
+            Map<UUID, List<FaturaPaga>> pagas,
+            Map<UUID, List<FaturaInformada>> informadas) {
         List<Instant> instantes = new ArrayList<>();
         planos.forEach(c -> instantes.add(c.compromisso().criadoEm()));
         lancamentos.forEach(l -> instantes.add(l.criadoEm()));
         pagas.values().forEach(lista -> lista.forEach(f -> instantes.add(f.pagaEm())));
+        informadas.values().forEach(lista -> lista.forEach(f -> instantes.add(f.informadoEm())));
         return Projecao.ultimaAtualizacao(instantes).orElse(null);
     }
 

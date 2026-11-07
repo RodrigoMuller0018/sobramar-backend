@@ -27,12 +27,17 @@ class LancamentoRepositoryAdapter implements LancamentoRepository, PagamentosRea
 
     private final LancamentoJpaRepository lancamentos;
     private final PagamentoFaturaJpaRepository faturas;
+    private final FaturaInformadaJpaRepository informadas;
     private final Clock clock;
 
     LancamentoRepositoryAdapter(
-            LancamentoJpaRepository lancamentos, PagamentoFaturaJpaRepository faturas, Clock clock) {
+            LancamentoJpaRepository lancamentos,
+            PagamentoFaturaJpaRepository faturas,
+            FaturaInformadaJpaRepository informadas,
+            Clock clock) {
         this.lancamentos = lancamentos;
         this.faturas = faturas;
+        this.informadas = informadas;
         this.clock = clock;
     }
 
@@ -124,6 +129,34 @@ class LancamentoRepositoryAdapter implements LancamentoRepository, PagamentosRea
     @Override
     public boolean excluirPagamentoDeFatura(UUID contaId, UUID cartaoId, YearMonth competencia) {
         return faturas.deleteByContaIdAndCartaoIdAndCompetencia(contaId, cartaoId, competencia.toString()) > 0;
+    }
+
+    @Override
+    public void informarTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia, long totalCentavos) {
+        FaturaInformadaEntity e = informadas
+                .findByContaIdAndCartaoIdAndCompetencia(contaId, cartaoId, competencia.toString())
+                .orElseGet(FaturaInformadaEntity::novo);
+        if (e.id == null) {
+            e.id = UUID.randomUUID();
+            e.contaId = contaId;
+            e.cartaoId = cartaoId;
+            e.competencia = competencia.toString();
+        }
+        e.total = Dinheiro.paraBanco(totalCentavos);
+        e.informadoEm = clock.instant();
+        informadas.saveAndFlush(e);
+    }
+
+    @Override
+    public boolean esquecerTotalDaFatura(UUID contaId, UUID cartaoId, YearMonth competencia) {
+        return informadas.deleteByContaIdAndCartaoIdAndCompetencia(contaId, cartaoId, competencia.toString()) > 0;
+    }
+
+    @Override
+    public List<FaturaInformada> faturasInformadas(UUID contaId, UUID cartaoId) {
+        return informadas.findByContaIdAndCartaoId(contaId, cartaoId).stream()
+                .map(e -> new FaturaInformada(YearMonth.parse(e.competencia), Dinheiro.deBanco(e.total), e.informadoEm))
+                .toList();
     }
 
     @Override

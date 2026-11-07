@@ -72,6 +72,8 @@ class LancamentoController {
         }
     }
 
+    record TotalDaFaturaRequest(@NotNull Long totalCentavos) {}
+
     record LancamentoResponse(
             UUID id,
             Lancamento.Tipo tipo,
@@ -186,6 +188,25 @@ class LancamentoController {
             @PathVariable UUID id,
             @PathVariable YearMonth competencia) {
         servico.desfazerPagamentoDeFatura(usuario.contaId(), id, competencia);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/cartoes/{id}/faturas/{competencia}/total")
+    ResponseEntity<Void> informarTotalDaFatura(
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
+            @PathVariable UUID id,
+            @PathVariable YearMonth competencia,
+            @Valid @RequestBody TotalDaFaturaRequest r) {
+        servico.informarTotalDaFatura(usuario.contaId(), id, competencia, r.totalCentavos());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/cartoes/{id}/faturas/{competencia}/total")
+    ResponseEntity<Void> esquecerTotalDaFatura(
+            @AuthenticationPrincipal UsuarioAutenticado usuario,
+            @PathVariable UUID id,
+            @PathVariable YearMonth competencia) {
+        servico.esquecerTotalDaFatura(usuario.contaId(), id, competencia);
         return ResponseEntity.noContent().build();
     }
 }
