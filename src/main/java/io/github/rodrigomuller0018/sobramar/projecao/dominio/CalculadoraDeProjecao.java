@@ -120,6 +120,7 @@ public final class CalculadoraDeProjecao {
                 c.natureza(),
                 c.certeza(),
                 valor,
+                situacao == Situacao.PREVISTO ? c.valorMaximoCentavos() : null,
                 o.dataCompra(),
                 o.vencimento(),
                 ignorada,
@@ -146,6 +147,7 @@ public final class CalculadoraDeProjecao {
                 natureza,
                 Compromisso.Certeza.CERTO,
                 l.valorCentavos(),
+                null,
                 l.data(),
                 l.data(),
                 l.ignorado(),
@@ -175,9 +177,18 @@ public final class CalculadoraDeProjecao {
                 soma(contados, Compromisso.Natureza.SAIDA),
                 contemEstimativa,
                 contemEstimativa || !conciliado ? Confianca.ESTIMADA : Confianca.FIRME,
+                extraPossivel(contados),
                 faturas,
                 daConta,
                 vale(fora));
+    }
+
+    /** Só entradas ainda previstas rendem "pode chegar a"; saída com faixa nunca aumenta a sobra. */
+    private static long extraPossivel(List<Item> contados) {
+        return contados.stream()
+                .filter(i -> i.natureza() == Compromisso.Natureza.ENTRADA && i.valorMaximoCentavos() != null)
+                .mapToLong(i -> i.valorMaximoCentavos() - i.valorCentavos())
+                .sum();
     }
 
     /** Compra no cartão não tem carteira. */

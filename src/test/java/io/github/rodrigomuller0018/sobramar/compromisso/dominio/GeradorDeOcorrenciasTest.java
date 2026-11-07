@@ -50,6 +50,7 @@ class GeradorDeOcorrenciasTest {
                 null,
                 null,
                 null,
+                null,
                 cancelado == null ? null : LocalDate.parse(cancelado),
                 Instant.EPOCH);
     }

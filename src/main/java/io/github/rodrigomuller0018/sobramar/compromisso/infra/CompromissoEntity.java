@@ -62,6 +62,9 @@ class CompromissoEntity {
 
     Integer parte;
 
+    @Column(name = "valor_maximo", precision = 14, scale = 2)
+    BigDecimal valorMaximo;
+
     @Column(name = "cancelado_a_partir_de")
     LocalDate canceladoAPartirDe;
 

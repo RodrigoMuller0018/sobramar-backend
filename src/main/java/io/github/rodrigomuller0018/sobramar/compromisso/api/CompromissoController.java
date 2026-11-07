@@ -58,7 +58,8 @@ class CompromissoController {
             YearMonth faturaInicial,
             UUID pessoaId,
             UUID categoriaId,
-            Integer parte) {
+            Integer parte,
+            Long valorMaximoCentavos) {
 
         Plano plano() {
             long valor = forma == Compromisso.Forma.PARCELADO
@@ -79,7 +80,8 @@ class CompromissoController {
                     faturaInicial,
                     pessoaId,
                     categoriaId,
-                    parte);
+                    parte,
+                    valorMaximoCentavos);
         }
     }
 
@@ -127,6 +129,7 @@ class CompromissoController {
             UUID pessoaId,
             UUID categoriaId,
             Integer parte,
+            Long valorMaximoCentavos,
             LocalDate canceladoAPartirDe,
             List<Aviso> avisos,
             List<OcorrenciaResponse> ocorrencias) {
@@ -149,6 +152,7 @@ class CompromissoController {
                     c.pessoaId(),
                     c.categoriaId(),
                     c.parte(),
+                    c.valorMaximoCentavos(),
                     c.canceladoAPartirDe(),
                     avisos.stream().map(Aviso::new).toList(),
                     ocorrencias);
