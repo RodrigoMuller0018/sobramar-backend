@@ -60,6 +60,8 @@ class CompromissoEntity {
     @Column(name = "categoria_id")
     UUID categoriaId;
 
+    Integer parte;
+
     @Column(name = "cancelado_a_partir_de")
     LocalDate canceladoAPartirDe;
 

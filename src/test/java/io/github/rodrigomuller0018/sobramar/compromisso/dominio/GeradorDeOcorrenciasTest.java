@@ -49,6 +49,7 @@ class GeradorDeOcorrenciasTest {
                 faturaInicial == null ? null : YearMonth.parse(faturaInicial),
                 null,
                 null,
+                null,
                 cancelado == null ? null : LocalDate.parse(cancelado),
                 Instant.EPOCH);
     }

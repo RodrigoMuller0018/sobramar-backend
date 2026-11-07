@@ -94,13 +94,17 @@ public final class GeradorDeOcorrencias {
                 ajuste.ignorada());
     }
 
-    /** Parcela truncada em centavos, com a diferença na última: a soma é sempre igual ao total. */
+    /**
+     * Parcela truncada em centavos, com a diferença na última: a soma é sempre igual ao total. A parte da conta
+     * entra antes de dividir, para a soma das parcelas bater com a parte do total.
+     */
     private static long valorBase(Compromisso c, int numero) {
+        long total = c.valorDaParteCentavos();
         if (c.forma() != Forma.PARCELADO) {
-            return c.valorCentavos();
+            return total;
         }
-        long parcela = c.valorCentavos() / c.parcelas();
-        return numero == c.parcelas() ? c.valorCentavos() - parcela * (c.parcelas() - 1) : parcela;
+        long parcela = total / c.parcelas();
+        return numero == c.parcelas() ? total - parcela * (c.parcelas() - 1) : parcela;
     }
 
     private static Base base(Compromisso c, RegraDeFatura regra, int numero) {

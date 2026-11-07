@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -134,10 +133,10 @@ class LancamentoRepositoryAdapter implements LancamentoRepository, PagamentosRea
     }
 
     @Override
-    public Set<YearMonth> faturasPagas(UUID contaId, UUID cartaoId) {
+    public List<FaturaPaga> faturasPagasDetalhadas(UUID contaId, UUID cartaoId) {
         return faturas.findByContaIdAndCartaoId(contaId, cartaoId).stream()
-                .map(e -> YearMonth.parse(e.competencia))
-                .collect(Collectors.toSet());
+                .map(e -> new FaturaPaga(YearMonth.parse(e.competencia), Dinheiro.deBanco(e.valor), e.criadoEm))
+                .toList();
     }
 
     private static Lancamento paraDominio(LancamentoEntity e) {

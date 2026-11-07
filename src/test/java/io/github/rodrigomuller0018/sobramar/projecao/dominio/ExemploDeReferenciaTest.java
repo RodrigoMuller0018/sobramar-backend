@@ -68,6 +68,7 @@ class ExemploDeReferenciaTest {
                 pessoa,
                 null,
                 null,
+                null,
                 Instant.EPOCH);
     }
 
@@ -221,6 +222,7 @@ class ExemploDeReferenciaTest {
                 lancamentos,
                 Map.of(CARTAO, REGRA),
                 Map.of(CARTAO, Set.of(YearMonth.parse("2027-01"))),
+                Map.of(CARTAO, Map.of(YearMonth.parse("2027-01"), 30_000L)),
                 Set.of(VALE));
     }
 
