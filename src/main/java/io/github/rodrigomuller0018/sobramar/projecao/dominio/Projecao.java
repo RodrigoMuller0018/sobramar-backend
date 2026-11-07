@@ -1,9 +1,12 @@
 package io.github.rodrigomuller0018.sobramar.projecao.dominio;
 
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Compromisso;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** O resultado da conta: a linha do tempo, mês a mês. */
@@ -14,6 +17,15 @@ public final class Projecao {
     public enum Situacao {
         PREVISTO,
         REALIZADO
+    }
+
+    /**
+     * Quanto dá para confiar na sobra do mês. ESTIMADA enquanto houver valor estimado ainda previsto ou fatura que
+     * não bate com o total do banco; FIRME só quando tudo é certo e conciliado. O front mostra a lápis ou em tinta.
+     */
+    public enum Confianca {
+        FIRME,
+        ESTIMADA
     }
 
     public record Item(
@@ -33,7 +45,21 @@ public final class Projecao {
             UUID categoriaId,
             Situacao situacao) {}
 
-    public record Fatura(UUID cartaoId, LocalDate vencimento, long totalCentavos, boolean paga) {}
+    /**
+     * @param informadoCentavos o total que o banco cobrou, quando a pessoa informou ou pagou a fatura; nulo se não
+     */
+    public record Fatura(
+            UUID cartaoId, LocalDate vencimento, long totalCentavos, boolean paga, Long informadoCentavos) {
+
+        /** O que "falta explicar": informado menos calculado. Nulo sem total informado. */
+        public Long diferencaCentavos() {
+            return informadoCentavos == null ? null : informadoCentavos - totalCentavos;
+        }
+
+        public boolean conciliada() {
+            return informadoCentavos != null && informadoCentavos == totalCentavos;
+        }
+    }
 
     public record Vale(UUID carteiraId, long creditosCentavos, long gastosCentavos) {}
 
@@ -42,6 +68,7 @@ public final class Projecao {
             long receitasCentavos,
             long compromissosCentavos,
             boolean contemEstimativa,
+            Confianca confianca,
             List<Fatura> faturas,
             List<Item> itens,
             List<Vale> vale) {
@@ -50,5 +77,10 @@ public final class Projecao {
         public long sobraCentavos() {
             return receitasCentavos - compromissosCentavos;
         }
+    }
+
+    /** O instante mais recente em que os dados da conta mudaram, para o "atualizado há N dias". */
+    public static Optional<Instant> ultimaAtualizacao(Collection<Instant> instantes) {
+        return instantes.stream().max(Instant::compareTo);
     }
 }

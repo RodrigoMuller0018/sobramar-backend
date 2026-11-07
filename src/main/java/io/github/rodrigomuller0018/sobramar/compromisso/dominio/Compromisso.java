@@ -27,6 +27,7 @@ public record Compromisso(
         YearMonth faturaInicial,
         UUID pessoaId,
         UUID categoriaId,
+        Integer parte,
         LocalDate canceladoAPartirDe,
         Instant criadoEm) {
 
@@ -49,11 +50,15 @@ public record Compromisso(
     public static final int DESCRICAO_MAXIMA = 120;
     public static final int MAXIMO_PARCELAS_CARTAO = 48;
     public static final int MAXIMO_PARCELAS_BOLETO = 120;
+    public static final int PARTE_INTEIRA = 100;
 
     public Compromisso {
         validarDescricao(descricao);
         validarOrigem(natureza, carteiraId, cartaoId, faturaInicial);
         validarParcelas(forma, parcelas, cartaoId);
+        if (parte != null && (parte < 1 || parte > PARTE_INTEIRA)) {
+            throw new RegraDeNegocioException("PARTE_INVALIDA", "A parte precisa ficar entre 1 e 100 por cento.");
+        }
         if (valorCentavos <= 0) {
             throw new RegraDeNegocioException("VALOR_INVALIDO", "O valor precisa ser maior que zero.");
         }
@@ -67,6 +72,17 @@ public record Compromisso(
 
     public boolean noCartao() {
         return cartaoId != null;
+    }
+
+    /**
+     * A parte deste compromisso que é da conta, em centavos: quem divide o aluguel só vê a própria metade.
+     * Meio centavo arredonda para cima. Sem parte, vale o valor inteiro.
+     */
+    public long valorDaParteCentavos() {
+        if (parte == null || parte == PARTE_INTEIRA) {
+            return valorCentavos;
+        }
+        return (valorCentavos * parte + PARTE_INTEIRA / 2) / PARTE_INTEIRA;
     }
 
     public Compromisso cancelado(LocalDate aPartirDe) {
@@ -87,6 +103,7 @@ public record Compromisso(
                 faturaInicial,
                 pessoaId,
                 categoriaId,
+                parte,
                 aPartirDe,
                 criadoEm);
     }

@@ -61,7 +61,8 @@ public class CompromissoService implements UsoDoLimite {
             UUID cartaoId,
             YearMonth faturaInicial,
             UUID pessoaId,
-            UUID categoriaId) {}
+            UUID categoriaId,
+            Integer parte) {}
 
     public record EdicaoDeOcorrencia(
             Escopo escopo, Long valorCentavos, LocalDate vencimento, YearMonth fatura, Boolean ignorada) {}
@@ -225,6 +226,7 @@ public class CompromissoService implements UsoDoLimite {
                 p.faturaInicial(),
                 p.pessoaId(),
                 p.categoriaId(),
+                p.parte(),
                 canceladoAPartirDe,
                 criadoEm);
         validarReferencias(contaId, compromisso);
@@ -262,7 +264,8 @@ public class CompromissoService implements UsoDoLimite {
                 || c.recorrenciaAnual() != p.recorrenciaAnual()
                 || !Objects.equals(c.carteiraId(), p.carteiraId())
                 || !Objects.equals(c.cartaoId(), p.cartaoId())
-                || !Objects.equals(c.faturaInicial(), p.faturaInicial());
+                || !Objects.equals(c.faturaInicial(), p.faturaInicial())
+                || !Objects.equals(c.parte(), p.parte());
     }
 
     private List<String> avisos(UUID contaId, Compromisso c) {

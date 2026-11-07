@@ -46,6 +46,7 @@ class CompromissoRepositoryAdapter implements CompromissoRepository {
         e.faturaInicial = c.faturaInicial() == null ? null : c.faturaInicial().toString();
         e.pessoaId = c.pessoaId();
         e.categoriaId = c.categoriaId();
+        e.parte = c.parte();
         e.canceladoAPartirDe = c.canceladoAPartirDe();
         e.criadoEm = c.criadoEm();
         return paraDominio(compromissos.save(e));
@@ -144,6 +145,7 @@ class CompromissoRepositoryAdapter implements CompromissoRepository {
                 e.faturaInicial == null ? null : YearMonth.parse(e.faturaInicial),
                 e.pessoaId,
                 e.categoriaId,
+                e.parte,
                 e.canceladoAPartirDe,
                 e.criadoEm);
     }

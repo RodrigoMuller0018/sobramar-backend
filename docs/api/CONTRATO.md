@@ -116,9 +116,12 @@ As respostas repetem o corpo, com `id`, `arquivada` (`arquivado` no cartão) e `
   "dataInicio": "2027-01-15",
   "cartaoId": "uuid",
   "pessoaId": null,
-  "categoriaId": "uuid"
+  "categoriaId": "uuid",
+  "parte": null
 }
 ```
+
+`parte` é opcional, de 1 a 100: a porcentagem do compromisso que é desta conta. Quem divide o aluguel de R$ 1.500,00 ao meio informa `50` e vê R$ 750,00 em cada mês; meio centavo arredonda para cima, e em compra parcelada a parte entra no total antes de dividir. Nulo é o valor inteiro. Fora de 1 a 100 responde `PARTE_INVALIDA`.
 
 **Boleto em 36x**
 
@@ -229,6 +232,7 @@ O período tem no máximo 24 meses, e passar disso retorna `PERIODO_INVALIDO`.
 
 ```json
 {
+  "atualizadoEm": "2027-03-02T14:05:00Z",
   "meses": [
     {
       "competencia": "2027-03",
@@ -236,13 +240,17 @@ O período tem no máximo 24 meses, e passar disso retorna `PERIODO_INVALIDO`.
       "compromissosCentavos": 523000,
       "sobraCentavos": 277000,
       "contemEstimativa": true,
+      "confianca": "ESTIMADA",
       "faturas": [
         {
           "cartaoId": "uuid",
           "nomeCartao": "Cartão azul",
           "vencimento": "2027-03-05",
           "totalCentavos": 120000,
-          "paga": false
+          "paga": false,
+          "informadoCentavos": 125000,
+          "diferencaCentavos": 5000,
+          "conciliada": false
         }
       ],
       "itens": [
@@ -279,6 +287,9 @@ O período tem no máximo 24 meses, e passar disso retorna `PERIODO_INVALIDO`.
 
 - `situacao`: `PREVISTO` ou `REALIZADO`. Com `REALIZADO`, `valorCentavos` é o valor real.
 - `sobraCentavos` = `receitasCentavos` − `compromissosCentavos`. **Pode ser negativa**, e o front mostra isso sem tom de alarme.
+- `confianca`: `FIRME` ou `ESTIMADA`. É `ESTIMADA` enquanto o mês tiver item estimado ainda previsto ou alguma fatura não conciliada. O front mostra a sobra a lápis quando estimada e em tinta quando firme, e escreve a palavra, porque cor sozinha não basta.
+- `informadoCentavos` é o total que o banco cobrou naquela fatura (hoje, o valor com que ela foi paga); `diferencaCentavos` = informado − calculado, o "falta explicar"; `conciliada` é verdadeiro quando a diferença é zero. Sem total informado, os dois primeiros vêm nulos. Com filtro por pessoa ou categoria a fatura é parcial, então nunca se concilia.
+- `atualizadoEm` é o instante mais recente em que um compromisso foi criado, um lançamento entrou ou uma fatura foi paga; nulo em conta vazia. Serve para o "atualizado há N dias" ao lado da sobra.
 - `vale` nunca entra na sobra, e seus itens não aparecem em `itens`.
 - Parcela paga conta no mês do pagamento, com o valor real.
 - Item ignorado aparece em `itens`, mas sai dos totais.

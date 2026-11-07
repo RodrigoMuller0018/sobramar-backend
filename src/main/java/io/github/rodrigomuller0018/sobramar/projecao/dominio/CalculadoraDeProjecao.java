@@ -6,6 +6,7 @@ import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Compromisso;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.GeradorDeOcorrencias;
 import io.github.rodrigomuller0018.sobramar.compromisso.dominio.Ocorrencia;
 import io.github.rodrigomuller0018.sobramar.lancamento.dominio.Lancamento;
+import io.github.rodrigomuller0018.sobramar.projecao.dominio.Projecao.Confianca;
 import io.github.rodrigomuller0018.sobramar.projecao.dominio.Projecao.Fatura;
 import io.github.rodrigomuller0018.sobramar.projecao.dominio.Projecao.Item;
 import io.github.rodrigomuller0018.sobramar.projecao.dominio.Projecao.Mes;
@@ -31,11 +32,16 @@ public final class CalculadoraDeProjecao {
 
     public record CompromissoComAjustes(Compromisso compromisso, List<AjusteOcorrencia> ajustes) {}
 
+    /**
+     * @param faturasInformadas por cartão e competência, o total que o banco cobrou (informado ou pago). É com ele
+     *     que a fatura calculada se concilia.
+     */
     public record Entrada(
             List<CompromissoComAjustes> compromissos,
             List<Lancamento> lancamentos,
             Map<UUID, RegraDeFatura> regrasDosCartoes,
             Map<UUID, Set<YearMonth>> faturasPagas,
+            Map<UUID, Map<YearMonth, Long>> faturasInformadas,
             Set<UUID> carteirasDeVale) {}
 
     public record Filtro(UUID pessoaId, UUID categoriaId) {
@@ -69,7 +75,7 @@ public final class CalculadoraDeProjecao {
                         Movimento::mes, TreeMap::new, Collectors.mapping(Movimento::item, Collectors.toList())));
         List<Mes> meses = new ArrayList<>();
         for (YearMonth mes = de; !mes.isAfter(ate); mes = mes.plusMonths(1)) {
-            meses.add(mes(mes, porMes.getOrDefault(mes, List.of()), entrada));
+            meses.add(mes(mes, porMes.getOrDefault(mes, List.of()), entrada, filtro));
         }
         return meses;
     }
@@ -151,7 +157,7 @@ public final class CalculadoraDeProjecao {
         return new Movimento(YearMonth.from(l.data()), item);
     }
 
-    private static Mes mes(YearMonth competencia, List<Item> itens, Entrada entrada) {
+    private static Mes mes(YearMonth competencia, List<Item> itens, Entrada entrada, Filtro filtro) {
         List<Item> fora =
                 itens.stream().filter(i -> ehVale(entrada, i.carteiraId())).toList();
         List<Item> daConta = itens.stream()
@@ -161,12 +167,15 @@ public final class CalculadoraDeProjecao {
         List<Item> contados = daConta.stream().filter(i -> !i.ignorada()).toList();
         boolean contemEstimativa = contados.stream()
                 .anyMatch(i -> i.certeza() == Compromisso.Certeza.ESTIMADO && i.situacao() == Situacao.PREVISTO);
+        List<Fatura> faturas = faturas(competencia, contados, entrada, filtro);
+        boolean conciliado = faturas.stream().allMatch(Fatura::conciliada);
         return new Mes(
                 competencia,
                 soma(contados, Compromisso.Natureza.ENTRADA),
                 soma(contados, Compromisso.Natureza.SAIDA),
                 contemEstimativa,
-                faturas(competencia, contados, entrada),
+                contemEstimativa || !conciliado ? Confianca.ESTIMADA : Confianca.FIRME,
+                faturas,
                 daConta,
                 vale(fora));
     }
@@ -183,11 +192,13 @@ public final class CalculadoraDeProjecao {
                 .sum();
     }
 
-    private static List<Fatura> faturas(YearMonth competencia, List<Item> contados, Entrada entrada) {
+    /** Com filtro, a fatura é parcial e não se concilia com o total do banco. */
+    private static List<Fatura> faturas(YearMonth competencia, List<Item> contados, Entrada entrada, Filtro filtro) {
         Map<UUID, Long> totais = contados.stream()
                 .filter(i -> i.cartaoId() != null)
                 .collect(Collectors.groupingBy(
                         Item::cartaoId, TreeMap::new, Collectors.summingLong(Item::valorCentavos)));
+        boolean completa = Filtro.NENHUM.equals(filtro);
         return totais.entrySet().stream()
                 .map(total -> new Fatura(
                         total.getKey(),
@@ -198,7 +209,12 @@ public final class CalculadoraDeProjecao {
                         total.getValue(),
                         entrada.faturasPagas()
                                 .getOrDefault(total.getKey(), Set.of())
-                                .contains(competencia)))
+                                .contains(competencia),
+                        completa
+                                ? entrada.faturasInformadas()
+                                        .getOrDefault(total.getKey(), Map.of())
+                                        .get(competencia)
+                                : null))
                 .toList();
     }
 
