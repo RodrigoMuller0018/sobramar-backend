@@ -33,7 +33,7 @@
 		<spotbugs-plugin.version>4.10.5.0</spotbugs-plugin.version>
 		<pmd-plugin.version>3.28.0</pmd-plugin.version>
 		<pmd.version>7.29.0</pmd.version>
-		<sonar-plugin.version>5.8.0.7211</sonar-plugin.version>
+		<sonar-plugin.version>5.9.0.7382</sonar-plugin.version>
 
 		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 		<sonar.coverage.exclusions>**/*Application.java,**/config/**</sonar.coverage.exclusions>
